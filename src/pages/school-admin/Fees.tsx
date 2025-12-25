@@ -13,8 +13,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, DollarSign, CreditCard, Receipt, CheckCircle } from "lucide-react";
+import { Plus, Search, DollarSign, CreditCard, Receipt, CheckCircle, Download, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
+import { downloadFeeReceipt } from "@/utils/pdfGenerator";
+
+interface SchoolInfo {
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  logo_url?: string;
+}
 
 interface FeeStructure {
   id: string;
@@ -50,6 +59,7 @@ const Fees = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   
   // Fee Structure Dialog
   const [isStructureDialogOpen, setIsStructureDialogOpen] = useState(false);
@@ -65,8 +75,19 @@ const Fees = () => {
       fetchFeeStructures();
       fetchStudentFees();
       fetchClasses();
+      fetchSchoolInfo();
     }
   }, [schoolId]);
+
+  const fetchSchoolInfo = async () => {
+    const { data } = await supabase
+      .from("schools")
+      .select("name, address, phone, email, logo_url")
+      .eq("id", schoolId)
+      .single();
+    if (data) setSchoolInfo(data);
+  };
+
 
   const fetchFeeStructures = async () => {
     const { data } = await supabase
@@ -186,6 +207,45 @@ const Fees = () => {
       default:
         return <Badge variant="outline">Pending</Badge>;
     }
+  };
+
+  const handleDownloadReceipt = (fee: StudentFee) => {
+    if (!schoolInfo) {
+      toast.error("School information not available");
+      return;
+    }
+    if (!fee.receipt_number || !fee.paid_at) {
+      toast.error("No receipt available for this fee");
+      return;
+    }
+
+    const className = fee.students?.classes 
+      ? `${fee.students.classes.name}${fee.students.classes.section ? ` - ${fee.students.classes.section}` : ""}`
+      : "N/A";
+
+    downloadFeeReceipt({
+      receiptNumber: fee.receipt_number,
+      date: format(new Date(), "dd MMM yyyy"),
+      studentName: fee.students?.full_name || "Unknown",
+      studentClass: className,
+      rollNumber: fee.students?.roll_number || undefined,
+      feeType: "Fee Payment",
+      amount: fee.amount,
+      paidAmount: fee.paid_amount || 0,
+      paymentDate: format(new Date(fee.paid_at), "dd MMM yyyy"),
+      paymentMode: "Cash",
+      school: schoolInfo,
+    });
+  };
+
+  const handleWhatsAppReminder = (fee: StudentFee) => {
+    // This would need parent phone from students table
+    const pendingAmount = fee.amount - (fee.paid_amount || 0);
+    const message = encodeURIComponent(
+      `Dear Parent,\n\nThis is a reminder for pending fee payment.\n\nStudent: ${fee.students?.full_name}\nAmount Due: ₹${pendingAmount.toLocaleString()}\nDue Date: ${format(new Date(fee.due_date), "dd MMM yyyy")}\n\nPlease clear the dues at the earliest.\n\nRegards,\n${schoolInfo?.name || "School Administration"}`
+    );
+    // Open WhatsApp with pre-filled message (phone would need to be fetched)
+    toast.info("WhatsApp reminder feature requires parent phone number in student record");
   };
 
   return (
@@ -393,19 +453,40 @@ const Fees = () => {
                               <TableCell>{format(new Date(fee.due_date), "MMM dd, yyyy")}</TableCell>
                               <TableCell>{getStatusBadge(fee.status || "pending")}</TableCell>
                               <TableCell className="text-right">
-                                {fee.status !== "paid" && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedFee(fee);
-                                      setPaymentAmount((fee.amount - (fee.paid_amount || 0)).toString());
-                                      setIsPaymentDialogOpen(true);
-                                    }}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Collect
-                                  </Button>
-                                )}
+                                <div className="flex items-center justify-end gap-2">
+                                  {fee.status !== "paid" ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedFee(fee);
+                                          setPaymentAmount((fee.amount - (fee.paid_amount || 0)).toString());
+                                          setIsPaymentDialogOpen(true);
+                                        }}
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-1" />
+                                        Collect
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-[#25D366]"
+                                        onClick={() => handleWhatsAppReminder(fee)}
+                                      >
+                                        <MessageCircle className="h-4 w-4" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDownloadReceipt(fee)}
+                                    >
+                                      <Download className="h-4 w-4 mr-1" />
+                                      Receipt
+                                    </Button>
+                                  )}
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
