@@ -25,6 +25,7 @@ interface Employee {
   base_salary: number;
   is_active: boolean;
   date_of_joining: string | null;
+  isTeacher?: boolean;
 }
 
 const CATEGORIES = [
@@ -69,17 +70,35 @@ const Employees = () => {
 
   const fetchEmployees = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch employees
+    const { data: empData, error: empError } = await supabase
       .from("employees")
       .select("*")
       .eq("school_id", schoolId)
       .order("full_name");
 
-    if (error) {
+    if (empError) {
       toast.error("Failed to fetch employees");
-    } else {
-      setEmployees(data || []);
+      setLoading(false);
+      return;
     }
+
+    // Fetch teachers to check which employees are also teachers
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("email")
+      .eq("school_id", schoolId);
+
+    const teacherEmails = new Set(teacherData?.map(t => t.email?.toLowerCase()) || []);
+
+    // Mark employees who are also teachers
+    const employeesWithTeacherFlag = (empData || []).map(emp => ({
+      ...emp,
+      isTeacher: emp.email ? teacherEmails.has(emp.email.toLowerCase()) : false
+    }));
+
+    setEmployees(employeesWithTeacherFlag);
     setLoading(false);
   };
 
@@ -366,8 +385,17 @@ const Employees = () => {
                   <TableBody>
                     {filteredEmployees.map((emp) => (
                       <TableRow key={emp.id}>
-                        <TableCell className="font-medium">{emp.full_name}</TableCell>
-                        <TableCell><Badge variant="outline" className="capitalize">{emp.category.replace("_", " ")}</Badge></TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {emp.full_name}
+                            {emp.isTeacher && (
+                              <Badge variant="secondary" className="text-xs">Teacher</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">{emp.category.replace("_", " ")}</Badge>
+                        </TableCell>
                         <TableCell>{emp.employee_code || "-"}</TableCell>
                         <TableCell>{emp.phone || "-"}</TableCell>
                         <TableCell>₹{emp.base_salary.toLocaleString()}</TableCell>
