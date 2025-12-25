@@ -900,6 +900,72 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_permissions: {
+        Row: {
+          can_collect_fee: boolean | null
+          can_manage_attendance: boolean | null
+          can_manage_exams: boolean | null
+          can_manage_notices: boolean | null
+          can_manage_payroll: boolean | null
+          can_manage_students: boolean | null
+          can_view_reports: boolean | null
+          created_at: string | null
+          employee_id: string | null
+          id: string
+          is_active: boolean | null
+          school_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          can_collect_fee?: boolean | null
+          can_manage_attendance?: boolean | null
+          can_manage_exams?: boolean | null
+          can_manage_notices?: boolean | null
+          can_manage_payroll?: boolean | null
+          can_manage_students?: boolean | null
+          can_view_reports?: boolean | null
+          created_at?: string | null
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          school_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          can_collect_fee?: boolean | null
+          can_manage_attendance?: boolean | null
+          can_manage_exams?: boolean | null
+          can_manage_notices?: boolean | null
+          can_manage_payroll?: boolean | null
+          can_manage_students?: boolean | null
+          can_view_reports?: boolean | null
+          created_at?: string | null
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          school_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_permissions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_permissions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_fees: {
         Row: {
           amount: number
@@ -1320,6 +1386,19 @@ export type Database = {
         Args: { p_student_id: string; p_temp_password: string }
         Returns: Json
       }
+      get_staff_permissions: {
+        Args: { _user_id: string }
+        Returns: {
+          can_collect_fee: boolean
+          can_manage_attendance: boolean
+          can_manage_exams: boolean
+          can_manage_notices: boolean
+          can_manage_payroll: boolean
+          can_manage_students: boolean
+          can_view_reports: boolean
+          school_id: string
+        }[]
+      }
       get_user_school_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -1340,6 +1419,7 @@ export type Database = {
         | "teacher"
         | "student"
         | "parent"
+        | "school_staff"
       payment_status: "pending" | "completed" | "failed" | "refunded"
       subscription_plan: "basic" | "pro"
       subscription_status: "trial" | "active" | "expired" | "cancelled"
@@ -1470,7 +1550,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "school_admin", "teacher", "student", "parent"],
+      app_role: [
+        "super_admin",
+        "school_admin",
+        "teacher",
+        "student",
+        "parent",
+        "school_staff",
+      ],
       payment_status: ["pending", "completed", "failed", "refunded"],
       subscription_plan: ["basic", "pro"],
       subscription_status: ["trial", "active", "expired", "cancelled"],

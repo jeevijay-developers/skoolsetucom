@@ -47,6 +47,9 @@ const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }:
           case "school_admin":
             navigate("/school-admin");
             break;
+          case "school_staff":
+            navigate("/school-staff");
+            break;
           case "teacher":
             navigate("/teacher");
             break;
