@@ -1,1 +1,7 @@
 project_id = "qziaktzdykujgbembxrq"
+
+[functions.create-parent-login]
+verify_jwt = true
+
+[functions.generate-greeting]
+verify_jwt = true
