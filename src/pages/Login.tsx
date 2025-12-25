@@ -8,12 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { School, Users, Mail, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { School, Users, Mail, Lock, ArrowLeft, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import logo from "@/assets/skoolsetu-logo.png";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { signIn, user, userRole, loading } = useAuth();
+  const { signIn, user, userRole, loading, roleLoaded } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -21,10 +22,16 @@ const Login = () => {
   const [loginType, setLoginType] = useState<"school" | "student">("school");
 
   useEffect(() => {
-    if (!loading && user && userRole) {
-      redirectBasedOnRole(userRole.role);
+    // Only redirect when we have complete information
+    if (!loading && user && roleLoaded) {
+      if (userRole) {
+        redirectBasedOnRole(userRole.role);
+      } else {
+        // User is authenticated but has no role - redirect to complete registration
+        navigate("/complete-registration");
+      }
     }
-  }, [user, userRole, loading]);
+  }, [user, userRole, loading, roleLoaded]);
 
   const redirectBasedOnRole = (role: string) => {
     switch (role) {
@@ -92,6 +99,16 @@ const Login = () => {
     );
   }
 
+  // Show loading while checking role after login
+  if (user && !roleLoaded) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="text-muted-foreground">Loading your dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <Helmet>
@@ -116,6 +133,19 @@ const Login = () => {
         {/* Login Form */}
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-md">
+            {/* Show alert if user is logged in but has no role */}
+            {user && roleLoaded && !userRole && (
+              <Alert className="mb-4 border-amber-500/50 bg-amber-500/10">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Your account exists but registration is incomplete.{" "}
+                  <Link to="/complete-registration" className="font-medium underline">
+                    Complete registration
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Card className="shadow-card">
               <CardHeader className="text-center pb-2">
                 <CardTitle className="text-2xl">Welcome Back</CardTitle>

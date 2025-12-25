@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,8 +26,8 @@ const BOARDS = ["CBSE", "ICSE", "State Board", "IB", "IGCSE", "Other"];
 
 const CompleteRegistration = () => {
   const navigate = useNavigate();
-  const { user, signOut, refreshUserData } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { user, userRole, signOut, refreshUserData, loading, roleLoaded } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   
   // School details
   const [schoolName, setSchoolName] = useState("");
@@ -40,6 +40,34 @@ const CompleteRegistration = () => {
   const [principalName, setPrincipalName] = useState("");
   const [board, setBoard] = useState("");
   const [studentCount, setStudentCount] = useState("");
+
+  // Redirect if user already has a role
+  useEffect(() => {
+    if (!loading && roleLoaded) {
+      if (!user) {
+        navigate("/login");
+      } else if (userRole) {
+        // User already has a role, redirect to appropriate dashboard
+        switch (userRole.role) {
+          case "super_admin":
+            navigate("/super-admin");
+            break;
+          case "school_admin":
+            navigate("/school-admin");
+            break;
+          case "teacher":
+            navigate("/teacher");
+            break;
+          case "student":
+          case "parent":
+            navigate("/student");
+            break;
+          default:
+            navigate("/");
+        }
+      }
+    }
+  }, [user, userRole, loading, roleLoaded, navigate]);
 
   const validateForm = () => {
     if (!schoolName.trim()) {
@@ -72,63 +100,34 @@ const CompleteRegistration = () => {
   const handleSubmit = async () => {
     if (!validateForm() || !user) return;
     
-    setLoading(true);
+    setIsLoading(true);
     
     try {
-      // 1. Create the school
-      const { data: schoolData, error: schoolError } = await supabase
-        .from("schools")
-        .insert({
-          name: schoolName,
-          email: schoolEmail,
-          phone: schoolPhone,
-          address: address || null,
-          city,
-          state,
-          pincode: pincode || null,
-          principal_name: principalName || null,
-          board,
-          student_count: studentCount ? parseInt(studentCount) : 0,
-          created_by: user.id,
-        })
-        .select()
-        .single();
+      // Call the atomic registration function
+      const { data: regData, error: regError } = await supabase.rpc('complete_school_registration', {
+        _school_name: schoolName,
+        _school_email: schoolEmail,
+        _school_phone: schoolPhone,
+        _city: city,
+        _state: state,
+        _board: board,
+        _address: address || null,
+        _pincode: pincode || null,
+        _principal_name: principalName || null,
+        _student_count: studentCount ? parseInt(studentCount) : 0
+      });
 
-      if (schoolError) {
-        console.error("School creation error:", schoolError);
-        toast.error("Failed to create school. Please try again or contact support.");
-        setLoading(false);
+      if (regError) {
+        console.error("Registration error:", regError);
+        if (regError.message.includes("already has a registered role")) {
+          toast.error("You already have a registered account. Redirecting...");
+          await refreshUserData();
+          navigate("/school-admin");
+        } else {
+          toast.error("Failed to complete registration. Please try again.");
+        }
+        setIsLoading(false);
         return;
-      }
-
-      // 2. Create user role as school_admin
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: user.id,
-          role: "school_admin",
-          school_id: schoolData.id,
-        });
-
-      if (roleError) {
-        console.error("Role creation error:", roleError);
-        toast.error("Failed to assign admin role. Please contact support.");
-        setLoading(false);
-        return;
-      }
-
-      // 3. Create subscription (trial)
-      const { error: subscriptionError } = await supabase
-        .from("subscriptions")
-        .insert({
-          school_id: schoolData.id,
-          plan: "basic",
-          status: "trial",
-        });
-
-      if (subscriptionError) {
-        console.error("Subscription creation error:", subscriptionError);
-        // Non-critical error, continue
       }
 
       toast.success("Registration completed! Redirecting to dashboard...");
@@ -141,7 +140,7 @@ const CompleteRegistration = () => {
       console.error("Registration error:", error);
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -150,8 +149,22 @@ const CompleteRegistration = () => {
     navigate("/login");
   };
 
+  // Show loading while checking auth state
+  if (loading || !roleLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // If no user, the useEffect will redirect
   if (!user) {
-    navigate("/login");
+    return null;
+  }
+
+  // If user has role, the useEffect will redirect
+  if (userRole) {
     return null;
   }
 
@@ -310,9 +323,9 @@ const CompleteRegistration = () => {
                 className="w-full mt-6" 
                 size="lg"
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={isLoading}
               >
-                {loading ? "Creating School..." : "Complete Registration"}
+                {isLoading ? "Creating School..." : "Complete Registration"}
               </Button>
             </CardContent>
           </Card>

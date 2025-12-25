@@ -128,81 +128,35 @@ const Register = () => {
         return;
       }
 
-      const userId = authData.user.id;
+      // 2. Call the atomic registration function
+      const { data: regData, error: regError } = await supabase.rpc('complete_school_registration', {
+        _school_name: schoolName,
+        _school_email: schoolEmail,
+        _school_phone: schoolPhone,
+        _city: city,
+        _state: state,
+        _board: board,
+        _address: address || null,
+        _pincode: pincode || null,
+        _principal_name: principalName || null,
+        _student_count: studentCount ? parseInt(studentCount) : 0
+      });
 
-      // Wait a moment for the session to be fully established
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Verify we have a valid session before proceeding
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast.error("Session not established. Please try again.");
+      if (regError) {
+        console.error("Registration error:", regError);
+        // If school creation fails, user can complete registration later
+        toast.error("School setup incomplete. Please complete registration after logging in.");
+        navigate("/complete-registration");
         setLoading(false);
         return;
       }
 
-      // 2. Create the school
-      const { data: schoolData, error: schoolError } = await supabase
-        .from("schools")
-        .insert({
-          name: schoolName,
-          email: schoolEmail,
-          phone: schoolPhone,
-          address: address || null,
-          city,
-          state,
-          pincode: pincode || null,
-          principal_name: principalName || null,
-          board,
-          student_count: studentCount ? parseInt(studentCount) : 0,
-          created_by: userId,
-        })
-        .select()
-        .single();
-
-      if (schoolError) {
-        console.error("School creation error:", schoolError);
-        toast.error("Failed to create school. Please try logging in and completing registration.");
-        setLoading(false);
-        return;
-      }
-
-      // 3. Create user role as school_admin
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: userId,
-          role: "school_admin",
-          school_id: schoolData.id,
-        });
-
-      if (roleError) {
-        console.error("Role creation error:", roleError);
-        toast.error("Failed to assign admin role. Please contact support.");
-        setLoading(false);
-        return;
-      }
-
-      // 4. Create subscription (trial)
-      const { error: subscriptionError } = await supabase
-        .from("subscriptions")
-        .insert({
-          school_id: schoolData.id,
-          plan: "basic",
-          status: "trial",
-        });
-
-      if (subscriptionError) {
-        console.error("Subscription creation error:", subscriptionError);
-        // Non-critical error, continue
-      }
-
-      // 5. Update profile with phone
+      // 3. Update profile with phone (optional, non-critical)
       if (adminPhone) {
         await supabase
           .from("profiles")
           .update({ phone: adminPhone })
-          .eq("id", userId);
+          .eq("id", authData.user.id);
       }
 
       toast.success("Registration successful! Welcome to SkoolSetu.");
@@ -477,28 +431,30 @@ const Register = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-6">
+                <div className="flex gap-4 mt-6">
                   <Button 
-                    variant="outline" 
-                    className="flex-1"
+                    variant="outline"
+                    className="flex-1" 
+                    size="lg"
                     onClick={() => setStep(1)}
                   >
                     Back
                   </Button>
                   <Button 
-                    className="flex-1"
+                    className="flex-1" 
+                    size="lg"
                     onClick={handleSubmit}
                     disabled={loading}
                   >
-                    {loading ? "Creating Account..." : "Create Account"}
+                    {loading ? "Creating Account..." : "Complete Registration"}
                   </Button>
                 </div>
 
-                <p className="text-center text-xs text-muted-foreground mt-4">
-                  By creating an account, you agree to our{" "}
-                  <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
+                <p className="text-center text-sm text-muted-foreground">
+                  By registering, you agree to our{" "}
+                  <a href="#" className="text-primary hover:underline">Terms of Service</a>
                   {" "}and{" "}
-                  <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                  <a href="#" className="text-primary hover:underline">Privacy Policy</a>
                 </p>
               </CardContent>
             </Card>
@@ -507,34 +463,74 @@ const Register = () => {
           {/* Step 3: Success */}
           {step === 3 && (
             <Card className="shadow-card">
-              <CardContent className="pt-8 pb-8 text-center">
-                <div className="mx-auto w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-6">
-                  <CheckCircle className="h-10 w-10 text-secondary" />
+              <CardHeader className="text-center">
+                <div className="mx-auto w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle className="h-8 w-8 text-secondary" />
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Welcome to SkoolSetu!</h2>
-                <p className="text-muted-foreground mb-6">
-                  Your school <span className="font-medium text-foreground">{schoolName}</span> has been registered successfully.
-                </p>
-                
-                <div className="bg-muted/50 rounded-lg p-4 mb-6 text-left">
-                  <h3 className="font-medium mb-2">Your Free Trial Includes:</h3>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>✓ Full access to all features</li>
-                    <li>✓ Unlimited students & teachers</li>
-                    <li>✓ Attendance, fees & exam management</li>
-                    <li>✓ Parent communication portal</li>
+                <CardTitle className="text-2xl text-secondary">Registration Complete!</CardTitle>
+                <CardDescription className="text-base">
+                  Welcome to SkoolSetu, {adminName}!
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium">Your 1-Day Free Trial has started!</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Explore all features including student management, attendance tracking, 
+                    fee collection, exam management, and more.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-medium">What's Next?</h4>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
+                      <span>Add your teachers and assign them to classes</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
+                      <span>Create classes and sections for your school</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
+                      <span>Add students and their parent information</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
+                      <span>Set up fee structures for different classes</span>
+                    </li>
                   </ul>
                 </div>
 
-                <Button size="lg" className="w-full" onClick={() => navigate("/dashboard")}>
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  onClick={() => navigate("/school-admin")}
+                >
                   Go to Dashboard
                 </Button>
 
-                <p className="text-sm text-muted-foreground mt-4">
-                  Check your email for verification link
+                <p className="text-center text-sm text-muted-foreground">
+                  Need help getting started?{" "}
+                  <a href="mailto:support@skoolsetu.com" className="text-primary hover:underline">
+                    Contact Support
+                  </a>
                 </p>
               </CardContent>
             </Card>
+          )}
+
+          {/* Trial Banner */}
+          {step < 3 && (
+            <div className="mt-6 bg-secondary/10 border border-secondary/20 rounded-lg p-4 text-center">
+              <p className="text-sm font-medium text-secondary">
+                🎉 Start your 1-Day Free Trial with full access to all features!
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                No credit card required. Upgrade anytime.
+              </p>
+            </div>
           )}
         </div>
       </div>
