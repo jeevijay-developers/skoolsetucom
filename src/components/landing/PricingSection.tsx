@@ -264,7 +264,7 @@ const PricingSection = () => {
                 </div>
               </div>
 
-              <Link to="/register">
+              <Link to={`/register?plan=basic&students=${students}&billing=${billingCycle}`}>
                 <Button variant="outline" size="lg" className="w-full mb-6 h-12 text-base font-semibold border-2 hover:bg-primary hover:text-primary-foreground transition-all">
                   Start Free Trial
                 </Button>
@@ -345,7 +345,7 @@ const PricingSection = () => {
                 </div>
               </div>
 
-              <Link to="/register">
+              <Link to={`/register?plan=pro&students=${students}&billing=${billingCycle}`}>
                 <Button variant="secondary" size="lg" className="w-full mb-6 h-12 text-base font-bold shadow-lg hover:scale-[1.02] transition-transform">
                   Start Free Trial
                 </Button>

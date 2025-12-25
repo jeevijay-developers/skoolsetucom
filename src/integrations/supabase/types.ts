@@ -1180,6 +1180,7 @@ export type Database = {
       subscriptions: {
         Row: {
           amount: number | null
+          billing_cycle: string | null
           coupon_code: string | null
           created_at: string
           discount_amount: number | null
@@ -1187,6 +1188,7 @@ export type Database = {
           plan: Database["public"]["Enums"]["subscription_plan"]
           school_id: string
           status: Database["public"]["Enums"]["subscription_status"]
+          student_count: number | null
           subscription_end_date: string | null
           subscription_start_date: string | null
           trial_end_date: string
@@ -1195,6 +1197,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          billing_cycle?: string | null
           coupon_code?: string | null
           created_at?: string
           discount_amount?: number | null
@@ -1202,6 +1205,7 @@ export type Database = {
           plan?: Database["public"]["Enums"]["subscription_plan"]
           school_id: string
           status?: Database["public"]["Enums"]["subscription_status"]
+          student_count?: number | null
           subscription_end_date?: string | null
           subscription_start_date?: string | null
           trial_end_date?: string
@@ -1210,6 +1214,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          billing_cycle?: string | null
           coupon_code?: string | null
           created_at?: string
           discount_amount?: number | null
@@ -1217,6 +1222,7 @@ export type Database = {
           plan?: Database["public"]["Enums"]["subscription_plan"]
           school_id?: string
           status?: Database["public"]["Enums"]["subscription_status"]
+          student_count?: number | null
           subscription_end_date?: string | null
           subscription_start_date?: string | null
           trial_end_date?: string

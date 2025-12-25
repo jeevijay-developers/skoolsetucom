@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, DollarSign, CreditCard, Tag, TrendingUp, Users, ArrowRight, Clock, AlertCircle, CheckCircle } from "lucide-react";
+import { Building2, DollarSign, CreditCard, Tag, TrendingUp, Users, ArrowRight, Clock, AlertCircle, CheckCircle, UserPlus } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
 interface DashboardStats {
@@ -269,6 +269,10 @@ const SuperAdminDashboard = () => {
                 <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/super-admin/coupons")}>
                   <Tag className="h-5 w-5" />
                   <span className="text-xs">Coupons</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2 border-secondary/50 hover:bg-secondary/10" onClick={() => navigate("/super-admin/trial-leads")}>
+                  <UserPlus className="h-5 w-5 text-secondary" />
+                  <span className="text-xs">Trial Leads</span>
                 </Button>
               </div>
             </CardContent>
