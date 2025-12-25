@@ -15,6 +15,9 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import NotFound from "./pages/NotFound";
+import AboutJeevijay from "./pages/AboutJeevijay";
+import AboutFounder from "./pages/AboutFounder";
+import Contact from "./pages/Contact";
 
 // School Admin pages
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
@@ -67,6 +70,9 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/complete-registration" element={<CompleteRegistration />} />
+              <Route path="/about-jeevijay" element={<AboutJeevijay />} />
+              <Route path="/about-founder" element={<AboutFounder />} />
+              <Route path="/contact" element={<Contact />} />
 
               {/* School Admin Routes */}
               <Route path="/school-admin" element={<ProtectedRoute allowedRoles={["school_admin"]}><SchoolAdminDashboard /></ProtectedRoute>} />
