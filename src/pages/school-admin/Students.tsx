@@ -272,6 +272,43 @@ const Students = () => {
     }
   };
 
+  // Auto-assign fees to student based on fee structures for their class
+  const assignFeesToStudent = async (studentId: string, classId: string) => {
+    try {
+      // Get fee structures for this class or school-wide (class_id is null)
+      const { data: feeStructures, error: feeError } = await supabase
+        .from("fee_structures")
+        .select("id, name, amount, frequency")
+        .eq("school_id", schoolId)
+        .or(`class_id.eq.${classId},class_id.is.null`);
+
+      if (feeError) throw feeError;
+
+      if (feeStructures && feeStructures.length > 0) {
+        // Create student fee records for each fee structure
+        const studentFees = feeStructures.map(fee => ({
+          school_id: schoolId!,
+          student_id: studentId,
+          fee_structure_id: fee.id,
+          amount: fee.amount,
+          due_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0], // Due in 1 month
+          status: "pending",
+          paid_amount: 0,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("student_fees")
+          .insert(studentFees);
+
+        if (insertError) {
+          console.error("Error assigning fees:", insertError);
+        }
+      }
+    } catch (error) {
+      console.error("Error in assignFeesToStudent:", error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -311,12 +348,21 @@ const Students = () => {
         if (error) throw error;
         toast.success("Student updated successfully");
       } else {
-        const { error } = await supabase
+        // Insert student and get the ID
+        const { data: newStudent, error } = await supabase
           .from("students")
-          .insert(studentData);
+          .insert(studentData)
+          .select("id")
+          .single();
 
         if (error) throw error;
-        toast.success("Student added successfully");
+
+        // Auto-assign fees based on fee structures for the class
+        if (newStudent && formData.class_id) {
+          await assignFeesToStudent(newStudent.id, formData.class_id);
+        }
+        
+        toast.success("Student added successfully with fees assigned");
       }
 
       setIsDialogOpen(false);

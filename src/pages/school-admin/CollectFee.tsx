@@ -127,7 +127,7 @@ const CollectFee = () => {
   };
 
   const fetchStudentFees = async (studentId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("student_fees")
       .select(`
         id, amount, paid_amount, due_date, status, fee_structure_id,
@@ -135,8 +135,12 @@ const CollectFee = () => {
       `)
       .eq("school_id", schoolId)
       .eq("student_id", studentId)
-      .neq("status", "paid")
+      .or("status.eq.pending,status.eq.partial,status.is.null")
       .order("due_date");
+    
+    if (error) {
+      console.error("Error fetching student fees:", error);
+    }
     setStudentFees(data || []);
   };
 
