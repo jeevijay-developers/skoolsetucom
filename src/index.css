@@ -135,6 +135,12 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
   }
+
+  /* Reduce placeholder opacity globally */
+  input::placeholder,
+  textarea::placeholder {
+    opacity: 0.4;
+  }
 }
 
 @layer components {
