@@ -32,6 +32,10 @@ import TeacherDashboard from "./pages/teacher/Dashboard";
 
 // Student pages
 import StudentDashboard from "./pages/student/Dashboard";
+import StudentAttendance from "./pages/student/Attendance";
+import StudentFees from "./pages/student/Fees";
+import StudentResults from "./pages/student/Results";
+import StudentNotices from "./pages/student/Notices";
 
 // Super Admin pages
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
@@ -80,6 +84,10 @@ const App = () => (
 
               {/* Student Routes */}
               <Route path="/student" element={<ProtectedRoute allowedRoles={["student", "parent"]}><StudentDashboard /></ProtectedRoute>} />
+              <Route path="/student/attendance" element={<ProtectedRoute allowedRoles={["student", "parent"]}><StudentAttendance /></ProtectedRoute>} />
+              <Route path="/student/fees" element={<ProtectedRoute allowedRoles={["student", "parent"]}><StudentFees /></ProtectedRoute>} />
+              <Route path="/student/results" element={<ProtectedRoute allowedRoles={["student", "parent"]}><StudentResults /></ProtectedRoute>} />
+              <Route path="/student/notices" element={<ProtectedRoute allowedRoles={["student", "parent"]}><StudentNotices /></ProtectedRoute>} />
 
               {/* Super Admin Routes */}
               <Route path="/super-admin" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminDashboard /></ProtectedRoute>} />

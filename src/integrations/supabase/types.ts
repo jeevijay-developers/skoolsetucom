@@ -778,6 +778,10 @@ export type Database = {
         }
         Returns: Json
       }
+      create_parent_login: {
+        Args: { p_student_id: string; p_temp_password: string }
+        Returns: Json
+      }
       get_user_school_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
