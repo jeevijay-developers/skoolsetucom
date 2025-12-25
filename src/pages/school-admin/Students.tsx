@@ -84,6 +84,15 @@ interface AttendanceRecord {
   status: string;
 }
 
+interface ExamResult {
+  id: string;
+  subject: string;
+  obtained_marks: number;
+  max_marks: number;
+  grade: string | null;
+  exams?: { name: string; exam_type: string | null } | null;
+}
+
 const Students = () => {
   const { schoolId, isSubscriptionActive } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
@@ -100,6 +109,7 @@ const Students = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
   const [studentAttendance, setStudentAttendance] = useState<AttendanceRecord[]>([]);
+  const [studentExamResults, setStudentExamResults] = useState<ExamResult[]>([]);
   const [loadingOverview, setLoadingOverview] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -403,6 +413,19 @@ const Students = () => {
 
       if (attendanceError) throw attendanceError;
       setStudentAttendance(attendance || []);
+
+      // Fetch exam results
+      const { data: results, error: resultsError } = await supabase
+        .from("exam_results")
+        .select(`
+          id, subject, obtained_marks, max_marks, grade,
+          exams:exam_id (name, exam_type)
+        `)
+        .eq("student_id", student.id)
+        .order("created_at", { ascending: false });
+
+      if (resultsError) throw resultsError;
+      setStudentExamResults(results || []);
     } catch (error) {
       console.error("Error fetching student overview:", error);
       toast.error("Failed to load student details");
@@ -494,6 +517,19 @@ const Students = () => {
     const absent = studentAttendance.filter(a => a.status === 'absent').length;
     const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
     return { total, present, absent, percentage };
+  };
+
+  const calculateExamSummary = () => {
+    if (studentExamResults.length === 0) return { totalExams: 0, avgPercentage: 0, totalSubjects: 0 };
+    
+    const examNames = new Set(studentExamResults.map(r => r.exams?.name));
+    const totalExams = examNames.size;
+    const totalSubjects = studentExamResults.length;
+    const totalObtained = studentExamResults.reduce((sum, r) => sum + r.obtained_marks, 0);
+    const totalMax = studentExamResults.reduce((sum, r) => sum + r.max_marks, 0);
+    const avgPercentage = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
+    
+    return { totalExams, avgPercentage, totalSubjects };
   };
 
   return (
@@ -947,10 +983,11 @@ const Students = () => {
                 </div>
               ) : selectedStudent && (
                 <Tabs defaultValue="details" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="details">Details</TabsTrigger>
                     <TabsTrigger value="fees">Fees</TabsTrigger>
                     <TabsTrigger value="attendance">Attendance</TabsTrigger>
+                    <TabsTrigger value="exams">Exam Results</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="details" className="space-y-4">
@@ -1148,6 +1185,83 @@ const Students = () => {
                       </div>
                     ) : (
                       <p className="text-center text-muted-foreground py-8">No attendance records found (last 30 days)</p>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="exams" className="space-y-4">
+                    {(() => {
+                      const { totalExams, avgPercentage, totalSubjects } = calculateExamSummary();
+                      return (
+                        <div className="grid grid-cols-3 gap-4">
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Total Exams</p>
+                              <p className="text-2xl font-bold">{totalExams}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Subjects Attempted</p>
+                              <p className="text-2xl font-bold">{totalSubjects}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Avg. Percentage</p>
+                              <p className="text-2xl font-bold">{avgPercentage}%</p>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      );
+                    })()}
+
+                    {studentExamResults.length > 0 ? (
+                      <div className="max-h-64 overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Exam</TableHead>
+                              <TableHead>Subject</TableHead>
+                              <TableHead>Obtained</TableHead>
+                              <TableHead>Max Marks</TableHead>
+                              <TableHead>Percentage</TableHead>
+                              <TableHead>Grade</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {studentExamResults.map((result) => {
+                              const percentage = result.max_marks > 0 
+                                ? Math.round((result.obtained_marks / result.max_marks) * 100) 
+                                : 0;
+                              return (
+                                <TableRow key={result.id}>
+                                  <TableCell className="font-medium">
+                                    {result.exams?.name || "-"}
+                                    {result.exams?.exam_type && (
+                                      <span className="text-xs text-muted-foreground ml-1">
+                                        ({result.exams.exam_type})
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>{result.subject}</TableCell>
+                                  <TableCell>{result.obtained_marks}</TableCell>
+                                  <TableCell>{result.max_marks}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={percentage >= 60 ? 'default' : percentage >= 33 ? 'secondary' : 'destructive'}>
+                                      {percentage}%
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{result.grade || "-"}</Badge>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground py-8">No exam results found</p>
                     )}
                   </TabsContent>
                 </Tabs>
