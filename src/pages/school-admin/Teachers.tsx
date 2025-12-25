@@ -111,38 +111,11 @@ const Teachers = () => {
     }
 
     try {
-      let userId = null;
-
-      // Create user account if requested
-      if (createAccount && accountPassword && !editingTeacher) {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: accountPassword,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: { full_name: formData.full_name },
-          },
-        });
-
-        if (authError) throw authError;
-        userId = authData.user?.id;
-
-        // Create user role
-        if (userId) {
-          await supabase.from("user_roles").insert({
-            user_id: userId,
-            role: "teacher",
-            school_id: schoolId,
-          });
-        }
-      }
-
       const subjectsArray = formData.subjects
         ? formData.subjects.split(",").map((s) => s.trim()).filter(Boolean)
         : null;
 
       const teacherData = {
-        school_id: schoolId!,
         full_name: formData.full_name,
         email: formData.email || null,
         phone: formData.phone || null,
@@ -150,22 +123,39 @@ const Teachers = () => {
         qualification: formData.qualification || null,
         subjects: subjectsArray,
         date_of_joining: formData.date_of_joining || null,
-        user_id: userId,
       };
 
       if (editingTeacher) {
         const { error } = await supabase
           .from("teachers")
-          .update(teacherData)
+          .update({ ...teacherData, school_id: schoolId! })
           .eq("id", editingTeacher.id);
 
         if (error) throw error;
         toast.success("Teacher updated successfully");
-      } else {
-        const { error } = await supabase.from("teachers").insert(teacherData);
+      } else if (createAccount && accountPassword) {
+        // Use edge function to create teacher with login account
+        const { data, error } = await supabase.functions.invoke("create-teacher-login", {
+          body: {
+            teacher_data: teacherData,
+            password: accountPassword,
+            school_id: schoolId
+          },
+        });
 
         if (error) throw error;
-        toast.success(createAccount ? "Teacher added with login account" : "Teacher added successfully");
+        if (data?.error) throw new Error(data.error);
+
+        toast.success("Teacher added with login account");
+      } else {
+        // Add teacher without login account
+        const { error } = await supabase.from("teachers").insert({
+          ...teacherData,
+          school_id: schoolId!,
+        });
+
+        if (error) throw error;
+        toast.success("Teacher added successfully");
       }
 
       setIsDialogOpen(false);
