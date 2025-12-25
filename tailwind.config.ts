@@ -21,6 +21,7 @@ export default {
       fontFamily: {
         sans: ["Inter", "sans-serif"],
         heading: ["Poppins", "sans-serif"],
+        chalk: ["'Fredericka the Great'", "cursive"],
       },
       colors: {
         border: "hsl(var(--border))",

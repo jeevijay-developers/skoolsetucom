@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Calendar, DollarSign, BookOpen, Bell, ArrowRight, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
+import { Calendar, DollarSign, BookOpen, ArrowRight, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
@@ -61,6 +61,19 @@ interface UpcomingExam {
   days_left: number;
 }
 
+interface ClassTeacher {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+}
+
+interface SubjectTeacher {
+  subject_name: string;
+  teacher_name: string;
+  teacher_phone: string | null;
+}
+
 const StudentDashboard = () => {
   const { user } = useAuth();
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
@@ -70,6 +83,8 @@ const StudentDashboard = () => {
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [upcomingExams, setUpcomingExams] = useState<UpcomingExam[]>([]);
   const [nextExam, setNextExam] = useState<UpcomingExam | null>(null);
+  const [classTeacher, setClassTeacher] = useState<ClassTeacher | null>(null);
+  const [subjectTeachers, setSubjectTeachers] = useState<SubjectTeacher[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -201,6 +216,51 @@ const StudentDashboard = () => {
               setNextExam(examsWithDays[0]);
             }
           }
+
+          // Fetch class teacher
+          const { data: classTeacherData } = await supabase
+            .from("teacher_classes")
+            .select(`
+              teachers:teacher_id (
+                id,
+                full_name,
+                phone,
+                email
+              )
+            `)
+            .eq("class_id", studentData.class_id)
+            .eq("is_class_teacher", true)
+            .maybeSingle();
+
+          if (classTeacherData?.teachers) {
+            const teacher = classTeacherData.teachers as any;
+            setClassTeacher({
+              id: teacher.id,
+              full_name: teacher.full_name,
+              phone: teacher.phone,
+              email: teacher.email,
+            });
+          }
+
+          // Fetch subject teachers
+          const { data: subjectTeachersData } = await supabase
+            .from("class_subjects")
+            .select(`
+              subjects:subject_id (name),
+              teachers:teacher_id (full_name, phone)
+            `)
+            .eq("class_id", studentData.class_id);
+
+          if (subjectTeachersData) {
+            const teachers = subjectTeachersData
+              .filter((st) => st.teachers && st.subjects)
+              .map((st) => ({
+                subject_name: (st.subjects as any)?.name || "Unknown",
+                teacher_name: (st.teachers as any)?.full_name || "Not Assigned",
+                teacher_phone: (st.teachers as any)?.phone || null,
+              }));
+            setSubjectTeachers(teachers);
+          }
         }
       }
 
@@ -312,6 +372,78 @@ const StudentDashboard = () => {
               variant="primary"
               description={nextExam ? `Next: ${nextExam.subject}` : "None scheduled"}
             />
+          </div>
+
+          {/* Teachers Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Class Teacher Card */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <UserCheck className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Your Class Teacher</CardTitle>
+                    <CardDescription>Contact for class-related queries</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {classTeacher ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-lg">{classTeacher.full_name}</p>
+                        {classTeacher.phone && (
+                          <p className="text-sm text-muted-foreground">📞 {classTeacher.phone}</p>
+                        )}
+                        {classTeacher.email && (
+                          <p className="text-sm text-muted-foreground">✉️ {classTeacher.email}</p>
+                        )}
+                      </div>
+                      <Badge variant="secondary">Class Teacher</Badge>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">No class teacher assigned</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Subject Teachers Card */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Your Subject Teachers</CardTitle>
+                    <CardDescription>Teachers for each subject</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {subjectTeachers.length > 0 ? (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {subjectTeachers.map((st, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-secondary/30 rounded-lg">
+                        <div>
+                          <p className="font-medium">{st.subject_name}</p>
+                          <p className="text-sm text-muted-foreground">{st.teacher_name}</p>
+                        </div>
+                        {st.teacher_phone && (
+                          <span className="text-xs text-muted-foreground">📞 {st.teacher_phone}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">No subject teachers assigned</p>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -486,47 +618,84 @@ const StudentDashboard = () => {
                 )}
               </CardContent>
             </Card>
+          </div>
 
-            {/* Recent Notices */}
-            <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">Recent Notices</CardTitle>
-                  <CardDescription>Latest school announcements</CardDescription>
+          {/* Green Chalkboard Notice Section */}
+          <div className="relative rounded-xl overflow-hidden" style={{
+            background: 'linear-gradient(to bottom, hsl(145, 45%, 22%), hsl(145, 40%, 28%))',
+            border: '12px solid hsl(30, 59%, 35%)',
+            boxShadow: 'inset 0 0 40px rgba(0,0,0,0.4), 0 4px 20px rgba(0,0,0,0.3)'
+          }}>
+            {/* Wood grain texture overlay for frame */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.2) 100%)'
+            }} />
+            
+            <div className="p-6 md:p-8">
+              {/* Chalk header */}
+              <div className="text-center mb-6">
+                <h2 className="font-chalk text-2xl md:text-3xl tracking-wider" style={{ 
+                  color: 'rgba(255, 255, 255, 0.95)',
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+                }}>
+                  📋 NOTICE BOARD 📋
+                </h2>
+                <div className="mt-2 mx-auto w-48 h-0.5" style={{ 
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)' 
+                }} />
+              </div>
+
+              {/* Notices content */}
+              {recentNotices.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="font-chalk text-xl" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                    No notices available
+                  </p>
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentNotices.map((notice, idx) => (
+                    <div 
+                      key={notice.id} 
+                      className="flex items-start gap-4 p-3 rounded-lg transition-all hover:bg-white/5"
+                    >
+                      <span className="font-chalk text-2xl" style={{ color: 'rgba(255, 255, 200, 0.9)' }}>
+                        📌
+                      </span>
+                      <div className="flex-1">
+                        <p className="font-chalk text-lg md:text-xl leading-relaxed" style={{ 
+                          color: 'rgba(255, 255, 255, 0.95)',
+                          textShadow: '1px 1px 2px rgba(0,0,0,0.2)'
+                        }}>
+                          {notice.title}
+                        </p>
+                        <p className="font-chalk text-sm mt-1" style={{ color: 'rgba(255, 255, 200, 0.7)' }}>
+                          {format(new Date(notice.published_at), "MMM dd, yyyy")}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* View all link */}
+              <div className="mt-6 text-center">
                 <Link to="/student/notices">
-                  <Button variant="ghost" size="sm">
-                    View All <ArrowRight className="ml-2 h-4 w-4" />
+                  <Button 
+                    variant="ghost" 
+                    className="font-chalk text-lg hover:bg-white/10"
+                    style={{ color: 'rgba(255, 255, 200, 0.9)' }}
+                  >
+                    View All Notices →
                   </Button>
                 </Link>
-              </CardHeader>
-              <CardContent>
-                {recentNotices.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Bell className="h-12 w-12 mx-auto text-muted-foreground opacity-50 mb-2" />
-                    <p className="text-muted-foreground">No notices available</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {recentNotices.map((notice) => (
-                      <div key={notice.id} className="p-4 border rounded-lg hover:shadow-sm transition-shadow">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-primary/10 rounded-lg shrink-0">
-                            <Bell className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium line-clamp-2">{notice.title}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(notice.published_at), "MMM dd, yyyy")}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </div>
+
+              {/* Chalk dust effect at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 h-4 pointer-events-none" style={{
+                background: 'linear-gradient(to top, rgba(255,255,255,0.1), transparent)'
+              }} />
+            </div>
           </div>
         </div>
       </DashboardLayout>
