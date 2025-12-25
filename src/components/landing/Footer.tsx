@@ -56,9 +56,9 @@ const Footer = () => {
                 </a>
               </div>
               <div className="flex items-center gap-3 text-primary-foreground/70">
-                <Phone size={18} />
-                <a href="tel:+919876543210" className="hover:text-primary-foreground transition-colors">
-                  +91 98765 43210
+              <Phone size={18} />
+              <a href="tel:+919664402955" className="hover:text-primary-foreground transition-colors">
+                +91 9664402955
                 </a>
               </div>
               <div className="flex items-start gap-3 text-primary-foreground/70">
@@ -84,10 +84,10 @@ const Footer = () => {
                 variant="outline"
                 size="sm"
                 className="w-full justify-start gap-2 bg-[#25D366]/10 border-[#25D366]/30 text-primary-foreground hover:bg-[#25D366]/20"
-                onClick={() => handleWhatsAppClick("+91 9876543210")}
+                onClick={() => handleWhatsAppClick("+91 9664402955")}
               >
                 <MessageCircle size={18} className="text-[#25D366]" />
-                Sales Enquiry: +91 98765 43210
+                Sales Enquiry: +91 9664402955
               </Button>
             </div>
           </div>

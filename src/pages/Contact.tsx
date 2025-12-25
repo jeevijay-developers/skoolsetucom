@@ -51,7 +51,7 @@ const Contact = () => {
 
   const contactInfo = [
     { icon: Mail, label: "Email", value: "hello@skoolsetu.com", href: "mailto:hello@skoolsetu.com" },
-    { icon: Phone, label: "Phone", value: "+91 98765 43210", href: "tel:+919876543210" },
+    { icon: Phone, label: "Phone", value: "+91 9664402955", href: "tel:+919664402955" },
     { icon: Clock, label: "Working Hours", value: "Mon - Sat, 9AM - 6PM IST", href: null },
   ];
 
@@ -211,12 +211,12 @@ const Contact = () => {
                       <Button
                         variant="outline"
                         className="w-full justify-start gap-3 h-14 bg-[#25D366]/5 border-[#25D366]/30 hover:bg-[#25D366]/10"
-                        onClick={() => handleWhatsAppClick("+91 9876543210")}
+                        onClick={() => handleWhatsAppClick("+91 9664402955")}
                       >
                         <MessageCircle size={24} className="text-[#25D366]" />
                         <div className="text-left">
                           <p className="font-medium">Sales Enquiry</p>
-                          <p className="text-xs text-muted-foreground">+91 98765 43210</p>
+                          <p className="text-xs text-muted-foreground">+91 9664402955</p>
                         </div>
                       </Button>
                     </div>
