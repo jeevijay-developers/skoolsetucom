@@ -18,14 +18,29 @@ import {
   ArrowRight,
   Bell,
   TrendingUp,
+  Building2,
+  Briefcase,
+  FileText,
+  ClipboardList,
+  CreditCard,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 
 interface DashboardStats {
   totalStudents: number;
   totalTeachers: number;
+  totalClasses: number;
+  totalEmployees: number;
   todayAttendance: number;
   pendingFees: number;
+  todayCollection: number;
+  monthlyRevenue: number;
+  classesMarkedToday: number;
+  totalClassesToMark: number;
+  activeExams: number;
+  pendingPayroll: number;
   recentNotices: any[];
 }
 
@@ -35,8 +50,16 @@ const SchoolAdminDashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalStudents: 0,
     totalTeachers: 0,
+    totalClasses: 0,
+    totalEmployees: 0,
     todayAttendance: 0,
     pendingFees: 0,
+    todayCollection: 0,
+    monthlyRevenue: 0,
+    classesMarkedToday: 0,
+    totalClassesToMark: 0,
+    activeExams: 0,
+    pendingPayroll: 0,
     recentNotices: [],
   });
   const [loading, setLoading] = useState(true);
@@ -51,58 +74,63 @@ const SchoolAdminDashboard = () => {
     if (!schoolId) return;
 
     try {
-      // Fetch total students
-      const { count: studentCount } = await supabase
-        .from("students")
-        .select("*", { count: "exact", head: true })
-        .eq("school_id", schoolId)
-        .eq("is_active", true);
-
-      // Fetch total teachers
-      const { count: teacherCount } = await supabase
-        .from("teachers")
-        .select("*", { count: "exact", head: true })
-        .eq("school_id", schoolId)
-        .eq("is_active", true);
-
-      // Fetch today's attendance
       const today = format(new Date(), "yyyy-MM-dd");
-      const { data: attendanceData } = await supabase
-        .from("attendance")
-        .select("status")
-        .eq("school_id", schoolId)
-        .eq("date", today);
+      const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+      const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
 
-      const presentCount = attendanceData?.filter((a) => a.status === "present").length || 0;
-      const totalMarked = attendanceData?.length || 0;
+      // Fetch counts in parallel
+      const [
+        studentsResult,
+        teachersResult,
+        classesResult,
+        employeesResult,
+        attendanceResult,
+        feesResult,
+        todayFeesResult,
+        monthlyFeesResult,
+        examsResult,
+        payrollResult,
+        noticesResult,
+        classAttendanceResult,
+      ] = await Promise.all([
+        supabase.from("students").select("*", { count: "exact", head: true }).eq("school_id", schoolId).eq("is_active", true),
+        supabase.from("teachers").select("*", { count: "exact", head: true }).eq("school_id", schoolId).eq("is_active", true),
+        supabase.from("classes").select("*", { count: "exact", head: true }).eq("school_id", schoolId),
+        supabase.from("employees").select("*", { count: "exact", head: true }).eq("school_id", schoolId).eq("is_active", true),
+        supabase.from("attendance").select("status").eq("school_id", schoolId).eq("date", today),
+        supabase.from("student_fees").select("amount, paid_amount").eq("school_id", schoolId).eq("status", "pending"),
+        supabase.from("student_fees").select("paid_amount").eq("school_id", schoolId).eq("status", "paid").gte("paid_at", `${today}T00:00:00`).lte("paid_at", `${today}T23:59:59`),
+        supabase.from("student_fees").select("paid_amount").eq("school_id", schoolId).eq("status", "paid").gte("paid_at", `${monthStart}T00:00:00`).lte("paid_at", `${monthEnd}T23:59:59`),
+        supabase.from("exams").select("*", { count: "exact", head: true }).eq("school_id", schoolId).eq("is_published", false).gte("end_date", today),
+        supabase.from("payroll").select("*", { count: "exact", head: true }).eq("school_id", schoolId).eq("status", "pending"),
+        supabase.from("notices").select("*").eq("school_id", schoolId).eq("is_published", true).order("published_at", { ascending: false }).limit(5),
+        supabase.from("attendance").select("class_id").eq("school_id", schoolId).eq("date", today),
+      ]);
+
+      const presentCount = attendanceResult.data?.filter((a) => a.status === "present").length || 0;
+      const totalMarked = attendanceResult.data?.length || 0;
       const attendancePercentage = totalMarked > 0 ? Math.round((presentCount / totalMarked) * 100) : 0;
 
-      // Fetch pending fees
-      const { data: feesData } = await supabase
-        .from("student_fees")
-        .select("amount, paid_amount")
-        .eq("school_id", schoolId)
-        .eq("status", "pending");
+      const pendingAmount = feesResult.data?.reduce((sum, fee) => sum + (Number(fee.amount) - (Number(fee.paid_amount) || 0)), 0) || 0;
+      const todayCollection = todayFeesResult.data?.reduce((sum, fee) => sum + (Number(fee.paid_amount) || 0), 0) || 0;
+      const monthlyRevenue = monthlyFeesResult.data?.reduce((sum, fee) => sum + (Number(fee.paid_amount) || 0), 0) || 0;
 
-      const pendingAmount = feesData?.reduce((sum, fee) => {
-        return sum + (fee.amount - (fee.paid_amount || 0));
-      }, 0) || 0;
-
-      // Fetch recent notices
-      const { data: notices } = await supabase
-        .from("notices")
-        .select("*")
-        .eq("school_id", schoolId)
-        .eq("is_published", true)
-        .order("published_at", { ascending: false })
-        .limit(5);
+      const uniqueClassesMarked = new Set(classAttendanceResult.data?.map(a => a.class_id) || []).size;
 
       setStats({
-        totalStudents: studentCount || 0,
-        totalTeachers: teacherCount || 0,
+        totalStudents: studentsResult.count || 0,
+        totalTeachers: teachersResult.count || 0,
+        totalClasses: classesResult.count || 0,
+        totalEmployees: employeesResult.count || 0,
         todayAttendance: attendancePercentage,
         pendingFees: pendingAmount,
-        recentNotices: notices || [],
+        todayCollection,
+        monthlyRevenue,
+        classesMarkedToday: uniqueClassesMarked,
+        totalClassesToMark: classesResult.count || 0,
+        activeExams: examsResult.count || 0,
+        pendingPayroll: payrollResult.count || 0,
+        recentNotices: noticesResult.data || [],
       });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
@@ -186,8 +214,8 @@ const SchoolAdminDashboard = () => {
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Primary Stats Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4">
             <StatsCard
               title="Total Students"
               value={stats.totalStudents}
@@ -203,19 +231,210 @@ const SchoolAdminDashboard = () => {
               description="Active teachers"
             />
             <StatsCard
+              title="Total Classes"
+              value={stats.totalClasses}
+              icon={Building2}
+              variant="primary"
+              description="This academic year"
+            />
+            <StatsCard
+              title="Total Employees"
+              value={stats.totalEmployees}
+              icon={Briefcase}
+              variant="secondary"
+              description="All staff"
+            />
+          </div>
+
+          {/* Secondary Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <StatsCard
               title="Today's Attendance"
               value={`${stats.todayAttendance}%`}
               icon={Calendar}
               variant={stats.todayAttendance >= 80 ? "secondary" : "warning"}
-              description="Present today"
+              description={`${stats.classesMarkedToday}/${stats.totalClassesToMark} classes marked`}
+            />
+            <StatsCard
+              title="Today's Collection"
+              value={`₹${stats.todayCollection.toLocaleString()}`}
+              icon={DollarSign}
+              variant="secondary"
+              description="Fee collected today"
+            />
+            <StatsCard
+              title="This Month Revenue"
+              value={`₹${stats.monthlyRevenue.toLocaleString()}`}
+              icon={TrendingUp}
+              variant="primary"
+              description={format(new Date(), "MMMM yyyy")}
             />
             <StatsCard
               title="Pending Fees"
               value={`₹${stats.pendingFees.toLocaleString()}`}
-              icon={DollarSign}
+              icon={AlertCircle}
               variant={stats.pendingFees > 0 ? "warning" : "default"}
               description="To be collected"
             />
+          </div>
+
+          {/* Quick Actions Grid */}
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>Frequently used features</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/school-admin/students")}>
+                  <Users className="h-5 w-5" />
+                  <span className="text-xs">Add Student</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/school-admin/teachers")}>
+                  <GraduationCap className="h-5 w-5" />
+                  <span className="text-xs">Add Teacher</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/school-admin/attendance")}>
+                  <Calendar className="h-5 w-5" />
+                  <span className="text-xs">Record Attendance</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/school-admin/collect-fee")}>
+                  <DollarSign className="h-5 w-5" />
+                  <span className="text-xs">Collect Fee</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/school-admin/notices")}>
+                  <Bell className="h-5 w-5" />
+                  <span className="text-xs">Create Notice</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/school-admin/exams")}>
+                  <FileText className="h-5 w-5" />
+                  <span className="text-xs">Create Exam</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/school-admin/payroll")}>
+                  <CreditCard className="h-5 w-5" />
+                  <span className="text-xs">Generate Payroll</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/school-admin/reports")}>
+                  <ClipboardList className="h-5 w-5" />
+                  <span className="text-xs">View Reports</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Report Cards Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Fee Collection Summary */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Fee Collection
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Today</span>
+                  <span className="font-semibold">₹{stats.todayCollection.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">This Month</span>
+                  <span className="font-semibold">₹{stats.monthlyRevenue.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Pending</span>
+                  <span className="font-semibold text-orange-500">₹{stats.pendingFees.toLocaleString()}</span>
+                </div>
+                <Button variant="ghost" size="sm" className="w-full mt-2" onClick={() => navigate("/school-admin/fees")}>
+                  View All <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Attendance Overview */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Attendance Today
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Percentage</span>
+                  <span className="font-semibold">{stats.todayAttendance}%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Classes Marked</span>
+                  <span className="font-semibold">{stats.classesMarkedToday}/{stats.totalClassesToMark}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  {stats.classesMarkedToday === stats.totalClassesToMark ? (
+                    <Badge variant="secondary" className="gap-1"><CheckCircle className="h-3 w-3" /> All Done</Badge>
+                  ) : (
+                    <Badge variant="outline" className="gap-1"><AlertCircle className="h-3 w-3" /> Pending</Badge>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" className="w-full mt-2" onClick={() => navigate("/school-admin/attendance")}>
+                  View Report <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Exam Status */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Exam Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Active Exams</span>
+                  <span className="font-semibold">{stats.activeExams}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  {stats.activeExams > 0 ? (
+                    <Badge variant="outline">{stats.activeExams} unpublished</Badge>
+                  ) : (
+                    <Badge variant="secondary">No active exams</Badge>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" className="w-full mt-2" onClick={() => navigate("/school-admin/exams")}>
+                  Manage Exams <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Payroll Status */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Payroll Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Pending Salaries</span>
+                  <span className="font-semibold">{stats.pendingPayroll}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  {stats.pendingPayroll > 0 ? (
+                    <Badge variant="outline" className="gap-1"><AlertCircle className="h-3 w-3" /> Action Required</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="gap-1"><CheckCircle className="h-3 w-3" /> All Paid</Badge>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" className="w-full mt-2" onClick={() => navigate("/school-admin/payroll")}>
+                  View Payroll <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Two Column Layout */}
@@ -259,37 +478,37 @@ const SchoolAdminDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
+            {/* Quick Reports */}
             <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Quick Actions
+                  <ClipboardList className="h-5 w-5" />
+                  Quick Reports
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <Button
                   variant="outline"
                   className="w-full justify-between"
-                  onClick={() => navigate("/school-admin/attendance")}
-                >
-                  Mark Attendance
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between"
                   onClick={() => navigate("/school-admin/fees")}
                 >
-                  Collect Fees
+                  Fee Collection Report
                   <ArrowRight className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full justify-between"
-                  onClick={() => navigate("/school-admin/exams")}
+                  onClick={() => navigate("/school-admin/attendance")}
                 >
-                  Manage Exams
+                  Attendance Report
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => navigate("/school-admin/students")}
+                >
+                  Student Report
                   <ArrowRight className="h-4 w-4" />
                 </Button>
                 <Button
@@ -297,7 +516,7 @@ const SchoolAdminDashboard = () => {
                   className="w-full justify-between"
                   onClick={() => navigate("/school-admin/reports")}
                 >
-                  View Reports
+                  All Reports
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </CardContent>

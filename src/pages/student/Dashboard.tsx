@@ -7,10 +7,11 @@ import GreetingBanner from "@/components/GreetingBanner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, DollarSign, BookOpen, Bell, ArrowRight, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Calendar, DollarSign, BookOpen, Bell, ArrowRight, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 
 interface StudentInfo {
   id: string;
@@ -33,6 +34,7 @@ interface FeeStats {
   totalDue: number;
   totalPaid: number;
   pending: number;
+  overdueFees: number;
 }
 
 interface RecentNotice {
@@ -56,16 +58,18 @@ interface UpcomingExam {
   start_time: string | null;
   end_time: string | null;
   exam_name: string;
+  days_left: number;
 }
 
 const StudentDashboard = () => {
   const { user } = useAuth();
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
   const [attendanceStats, setAttendanceStats] = useState<AttendanceStats>({ total: 0, present: 0, absent: 0, percentage: 0 });
-  const [feeStats, setFeeStats] = useState<FeeStats>({ totalDue: 0, totalPaid: 0, pending: 0 });
+  const [feeStats, setFeeStats] = useState<FeeStats>({ totalDue: 0, totalPaid: 0, pending: 0, overdueFees: 0 });
   const [recentNotices, setRecentNotices] = useState<RecentNotice[]>([]);
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [upcomingExams, setUpcomingExams] = useState<UpcomingExam[]>([]);
+  const [nextExam, setNextExam] = useState<UpcomingExam | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -120,19 +124,22 @@ const StudentDashboard = () => {
           });
         }
 
-        // Fetch fee stats
+        // Fetch fee stats with overdue calculation
+        const today = new Date().toISOString().split('T')[0];
         const { data: feeData } = await supabase
           .from("student_fees")
-          .select("amount, paid_amount, status")
+          .select("amount, paid_amount, status, due_date")
           .eq("student_id", studentData.id);
 
         if (feeData) {
           const totalDue = feeData.reduce((sum, f) => sum + Number(f.amount), 0);
           const totalPaid = feeData.reduce((sum, f) => sum + Number(f.paid_amount || 0), 0);
+          const overdueFees = feeData.filter(f => f.status === "pending" && f.due_date < today).length;
           setFeeStats({
             totalDue,
             totalPaid,
             pending: totalDue - totalPaid,
+            overdueFees,
           });
         }
 
@@ -164,7 +171,6 @@ const StudentDashboard = () => {
 
         // Fetch upcoming exams (schedules for student's class)
         if (studentData.class_id) {
-          const today = new Date().toISOString().split('T')[0];
           const { data: scheduleData } = await supabase
             .from("exam_schedules")
             .select(`
@@ -181,16 +187,19 @@ const StudentDashboard = () => {
             .limit(5);
 
           if (scheduleData) {
-            setUpcomingExams(
-              scheduleData.map((s) => ({
-                id: s.id,
-                subject: s.subject,
-                exam_date: s.exam_date,
-                start_time: s.start_time,
-                end_time: s.end_time,
-                exam_name: (s.exams as any)?.name || "Exam",
-              }))
-            );
+            const examsWithDays = scheduleData.map((s) => ({
+              id: s.id,
+              subject: s.subject,
+              exam_date: s.exam_date,
+              start_time: s.start_time,
+              end_time: s.end_time,
+              exam_name: (s.exams as any)?.name || "Exam",
+              days_left: differenceInDays(new Date(s.exam_date), new Date()),
+            }));
+            setUpcomingExams(examsWithDays);
+            if (examsWithDays.length > 0) {
+              setNextExam(examsWithDays[0]);
+            }
           }
         }
       }
@@ -245,8 +254,36 @@ const StudentDashboard = () => {
             </p>
           </div>
 
+          {/* Payment Due Alert */}
+          {feeStats.overdueFees > 0 && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Payment Overdue</AlertTitle>
+              <AlertDescription className="flex items-center justify-between">
+                <span>You have {feeStats.overdueFees} overdue fee payment(s). Total pending: ₹{feeStats.pending.toLocaleString()}</span>
+                <Link to="/student/fees">
+                  <Button size="sm" variant="outline" className="ml-2">Pay Now</Button>
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Exam Countdown */}
+          {nextExam && nextExam.days_left <= 7 && (
+            <Alert className={nextExam.days_left <= 3 ? "border-destructive bg-destructive/10" : "border-orange-500 bg-orange-500/10"}>
+              <Clock className={`h-4 w-4 ${nextExam.days_left <= 3 ? "text-destructive" : "text-orange-500"}`} />
+              <AlertTitle className={nextExam.days_left <= 3 ? "text-destructive" : "text-orange-500"}>
+                {nextExam.days_left === 0 ? "Exam Today!" : `Exam in ${nextExam.days_left} day${nextExam.days_left > 1 ? "s" : ""}`}
+              </AlertTitle>
+              <AlertDescription>
+                {nextExam.subject} ({nextExam.exam_name}) on {format(new Date(nextExam.exam_date), "EEEE, MMM dd")}
+                {nextExam.start_time && ` at ${nextExam.start_time}`}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatsCard 
               title="Attendance" 
               value={`${attendanceStats.percentage}%`} 
@@ -259,7 +296,7 @@ const StudentDashboard = () => {
               value={`₹${feeStats.pending.toLocaleString()}`} 
               icon={DollarSign} 
               variant={feeStats.pending > 0 ? "warning" : "primary"}
-              description={feeStats.pending > 0 ? "Payment due" : "All fees paid"}
+              description={feeStats.pending > 0 ? `${feeStats.overdueFees} overdue` : "All fees paid"}
             />
             <StatsCard 
               title="Recent Result" 
@@ -273,7 +310,7 @@ const StudentDashboard = () => {
               value={String(upcomingExams.length)} 
               icon={Calendar} 
               variant="primary"
-              description={upcomingExams.length > 0 ? "Scheduled" : "None scheduled"}
+              description={nextExam ? `Next: ${nextExam.subject}` : "None scheduled"}
             />
           </div>
 
@@ -304,12 +341,12 @@ const StudentDashboard = () => {
                         </div>
                         <div className="text-right">
                           <p className="font-medium">{format(new Date(exam.exam_date), "dd MMM")}</p>
-                          {exam.start_time && (
-                            <p className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
-                              <Clock className="h-3 w-3" />
-                              {exam.start_time}
-                            </p>
-                          )}
+                          <Badge 
+                            variant={exam.days_left <= 3 ? "destructive" : exam.days_left <= 7 ? "outline" : "secondary"}
+                            className="text-xs"
+                          >
+                            {exam.days_left === 0 ? "Today" : `${exam.days_left}d left`}
+                          </Badge>
                         </div>
                       </div>
                     ))}
@@ -335,14 +372,14 @@ const StudentDashboard = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <CheckCircle className="h-5 w-5 text-secondary" />
                       <span>Present Days</span>
                     </div>
                     <span className="font-semibold">{attendanceStats.present}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <XCircle className="h-5 w-5 text-red-500" />
+                      <XCircle className="h-5 w-5 text-destructive" />
                       <span>Absent Days</span>
                     </div>
                     <span className="font-semibold">{attendanceStats.absent}</span>
@@ -357,12 +394,15 @@ const StudentDashboard = () => {
                   <div className="pt-2 border-t">
                     <div className="w-full bg-secondary rounded-full h-3">
                       <div 
-                        className="bg-primary h-3 rounded-full transition-all" 
+                        className={`h-3 rounded-full transition-all ${attendanceStats.percentage >= 75 ? "bg-primary" : "bg-orange-500"}`}
                         style={{ width: `${attendanceStats.percentage}%` }}
                       />
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 text-center">
                       {attendanceStats.percentage}% attendance
+                      {attendanceStats.percentage < 75 && (
+                        <span className="text-orange-500 ml-1">(Below 75% required)</span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -390,14 +430,19 @@ const StudentDashboard = () => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Paid Amount</span>
-                    <span className="font-semibold text-green-600">₹{feeStats.totalPaid.toLocaleString()}</span>
+                    <span className="font-semibold text-secondary">₹{feeStats.totalPaid.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t">
                     <span className="font-medium">Pending Amount</span>
-                    <span className={`font-bold ${feeStats.pending > 0 ? "text-orange-500" : "text-green-600"}`}>
+                    <span className={`font-bold ${feeStats.pending > 0 ? "text-orange-500" : "text-secondary"}`}>
                       ₹{feeStats.pending.toLocaleString()}
                     </span>
                   </div>
+                  {feeStats.overdueFees > 0 && (
+                    <Badge variant="destructive" className="w-full justify-center">
+                      {feeStats.overdueFees} Overdue Payment(s)
+                    </Badge>
+                  )}
                   {feeStats.pending > 0 && (
                     <Link to="/student/fees">
                       <Button className="w-full">Pay Now</Button>
@@ -457,18 +502,25 @@ const StudentDashboard = () => {
               </CardHeader>
               <CardContent>
                 {recentNotices.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No notices available</p>
+                  <div className="text-center py-8">
+                    <Bell className="h-12 w-12 mx-auto text-muted-foreground opacity-50 mb-2" />
+                    <p className="text-muted-foreground">No notices available</p>
+                  </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {recentNotices.map((notice) => (
-                      <div key={notice.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Bell className="h-5 w-5 text-primary" />
-                          <p className="font-medium">{notice.title}</p>
+                      <div key={notice.id} className="p-4 border rounded-lg hover:shadow-sm transition-shadow">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                            <Bell className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium line-clamp-2">{notice.title}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(notice.published_at), "MMM dd, yyyy")}
+                            </p>
+                          </div>
                         </div>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(notice.published_at).toLocaleDateString()}
-                        </span>
                       </div>
                     ))}
                   </div>

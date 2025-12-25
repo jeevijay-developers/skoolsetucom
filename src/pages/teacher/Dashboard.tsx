@@ -8,9 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, ClipboardList, Users, DollarSign, FileText, BookOpen, CreditCard, ArrowRight } from "lucide-react";
+import { Calendar, ClipboardList, Users, DollarSign, FileText, BookOpen, CreditCard, ArrowRight, AlertCircle, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -20,8 +21,9 @@ const TeacherDashboard = () => {
   const [teacherData, setTeacherData] = useState<any>(null);
   const [assignedClasses, setAssignedClasses] = useState<any[]>([]);
   const [recentPayroll, setRecentPayroll] = useState<any[]>([]);
-  const [todayAttendance, setTodayAttendance] = useState<{ marked: boolean; classes: string[] }>({ marked: false, classes: [] });
+  const [todayAttendance, setTodayAttendance] = useState<{ marked: boolean; classes: string[]; markedClasses: string[] }>({ marked: false, classes: [], markedClasses: [] });
   const [upcomingExams, setUpcomingExams] = useState<any[]>([]);
+  const [pendingMarksCount, setPendingMarksCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -86,23 +88,28 @@ const TeacherDashboard = () => {
 
           const markedClassIds = [...new Set((attendance || []).map(a => a.class_id))];
           const unmarkedClasses = (teacherClasses || []).filter(tc => !markedClassIds.includes(tc.class_id));
+          const markedClasses = (teacherClasses || []).filter(tc => markedClassIds.includes(tc.class_id));
           
           setTodayAttendance({
             marked: unmarkedClasses.length === 0 && classIds.length > 0,
-            classes: unmarkedClasses.map(tc => tc.classes?.name + (tc.classes?.section ? ` - ${tc.classes.section}` : ""))
+            classes: unmarkedClasses.map(tc => tc.classes?.name + (tc.classes?.section ? ` - ${tc.classes.section}` : "")),
+            markedClasses: markedClasses.map(tc => tc.classes?.name + (tc.classes?.section ? ` - ${tc.classes.section}` : "")),
           });
         }
 
-        // Get upcoming exams
+        // Get upcoming exams and check for pending marks
         const { data: exams } = await supabase
           .from("exam_schedules")
-          .select("*, exams(name), classes(name, section)")
+          .select("*, exams(name, is_published), classes(name, section)")
           .eq("school_id", schoolId)
-          .gte("exam_date", new Date().toISOString().split("T")[0])
-          .order("exam_date")
-          .limit(5);
+          .in("class_id", classIds.length > 0 ? classIds : ['00000000-0000-0000-0000-000000000000'])
+          .order("exam_date");
 
-        setUpcomingExams(exams || []);
+        const upcoming = (exams || []).filter(e => new Date(e.exam_date) >= new Date());
+        const past = (exams || []).filter(e => new Date(e.exam_date) < new Date() && !e.exams?.is_published);
+        
+        setUpcomingExams(upcoming.slice(0, 5));
+        setPendingMarksCount(past.length);
       }
     } catch (error) {
       console.error("Error fetching teacher data:", error);
@@ -136,8 +143,45 @@ const TeacherDashboard = () => {
             <p className="text-muted-foreground">Here's your overview for today</p>
           </div>
 
+          {/* Today's Status Banner */}
+          {!todayAttendance.marked && todayAttendance.classes.length > 0 && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Attendance Pending</AlertTitle>
+              <AlertDescription className="flex items-center justify-between">
+                <span>You have {todayAttendance.classes.length} class(es) pending attendance: {todayAttendance.classes.join(", ")}</span>
+                <Link to="/teacher/attendance">
+                  <Button size="sm" variant="outline" className="ml-2">Mark Now</Button>
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {todayAttendance.marked && (
+            <Alert className="border-secondary bg-secondary/10">
+              <CheckCircle className="h-4 w-4 text-secondary" />
+              <AlertTitle className="text-secondary">Attendance Completed</AlertTitle>
+              <AlertDescription>
+                You have marked attendance for all your classes today.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {pendingMarksCount > 0 && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Pending Marks Entry</AlertTitle>
+              <AlertDescription className="flex items-center justify-between">
+                <span>You have {pendingMarksCount} exam(s) pending marks entry.</span>
+                <Link to="/teacher/exam-marks">
+                  <Button size="sm" variant="outline" className="ml-2">Enter Marks</Button>
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatsCard 
               title="Assigned Classes" 
               value={String(assignedClasses.length)} 
@@ -189,7 +233,9 @@ const TeacherDashboard = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold">Enter Marks</h3>
-                    <p className="text-sm text-muted-foreground">Record exam results</p>
+                    <p className="text-sm text-muted-foreground">
+                      {pendingMarksCount > 0 ? `${pendingMarksCount} pending` : "Record exam results"}
+                    </p>
                   </div>
                   <ArrowRight className="h-5 w-5 text-muted-foreground" />
                 </CardContent>
@@ -227,19 +273,35 @@ const TeacherDashboard = () => {
                   <p className="text-center text-muted-foreground py-4">No classes assigned yet</p>
                 ) : (
                   <div className="space-y-3">
-                    {assignedClasses.map((tc) => (
-                      <div key={tc.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{tc.classes?.name} {tc.classes?.section ? `- ${tc.classes.section}` : ""}</p>
-                          {tc.is_class_teacher && (
-                            <Badge variant="secondary" className="mt-1">Class Teacher</Badge>
+                    {assignedClasses.map((tc) => {
+                      const className = tc.classes?.name + (tc.classes?.section ? ` - ${tc.classes.section}` : "");
+                      const isMarked = todayAttendance.markedClasses.includes(className);
+                      
+                      return (
+                        <div key={tc.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <p className="font-medium">{className}</p>
+                              <div className="flex gap-1 mt-1">
+                                {tc.is_class_teacher && (
+                                  <Badge variant="secondary" className="text-xs">Class Teacher</Badge>
+                                )}
+                                {isMarked ? (
+                                  <Badge variant="outline" className="text-xs gap-1"><CheckCircle className="h-3 w-3" /> Marked</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs text-orange-500">Pending</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {!isMarked && (
+                            <Link to={`/teacher/attendance?class=${tc.class_id}`}>
+                              <Button variant="outline" size="sm">Mark Attendance</Button>
+                            </Link>
                           )}
                         </div>
-                        <Link to={`/teacher/attendance?class=${tc.class_id}`}>
-                          <Button variant="outline" size="sm">Mark Attendance</Button>
-                        </Link>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
