@@ -3,5 +3,8 @@ project_id = "qziaktzdykujgbembxrq"
 [functions.create-parent-login]
 verify_jwt = false
 
+[functions.create-teacher-login]
+verify_jwt = false
+
 [functions.generate-greeting]
 verify_jwt = false
