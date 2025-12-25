@@ -12,6 +12,7 @@ const Footer = () => {
     ],
     Company: [
       { name: "About Us", href: "#about" },
+      { name: "About Jeevijay", href: "/about-jeevijay" },
       { name: "Contact Us", href: "/contact" },
     ],
     Legal: [

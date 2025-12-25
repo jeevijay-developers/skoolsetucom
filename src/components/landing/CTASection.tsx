@@ -58,8 +58,8 @@ const CTASection = () => {
 
           <p className="mt-6 text-primary-foreground/60 text-sm">
             Questions? Call us at{" "}
-            <a href="tel:+919876543210" className="text-accent hover:underline">
-              +91 98765 43210
+            <a href="tel:+918619483010" className="text-accent hover:underline font-medium">
+              +91 86194 83010
             </a>
           </p>
         </div>
