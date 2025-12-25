@@ -130,6 +130,23 @@ const CompleteRegistration = () => {
         return;
       }
 
+      // Seed trial data for the new school
+      const schoolId = (regData as any)?.school_id;
+      if (schoolId) {
+        try {
+          const { error: seedError } = await supabase.functions.invoke('seed-trial-data', {
+            body: { school_id: schoolId }
+          });
+          
+          if (seedError) {
+            console.error("Seed data error:", seedError);
+            // Don't block registration if seeding fails
+          }
+        } catch (seedErr) {
+          console.error("Seed data error:", seedErr);
+        }
+      }
+
       toast.success("Registration completed! Redirecting to dashboard...");
       
       // Refresh user data and navigate

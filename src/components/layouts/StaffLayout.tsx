@@ -116,9 +116,9 @@ const StaffLayout = ({ children }: StaffLayoutProps) => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <Sidebar className="border-r border-sidebar-border">
-          <div className="p-4 border-b border-sidebar-border">
+          <div className="p-4 border-b border-sidebar-border bg-sidebar">
             <Link to="/" className="flex items-center gap-2">
-              <img src={logo} alt="SkoolSetu" className="h-8" />
+              <img src={logo} alt="SkoolSetu" className="h-8 brightness-0 invert" />
             </Link>
           </div>
           <SidebarContent>

@@ -46,8 +46,10 @@ import {
   ChevronDown,
   AlertTriangle,
   Receipt,
+  Crown,
 } from "lucide-react";
 import logo from "@/assets/skoolsetu-logo.png";
+import TrialCountdownBanner from "@/components/TrialCountdownBanner";
 
 interface MenuItem {
   title: string;
@@ -85,6 +87,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Notices", url: "/school-admin/notices", icon: Bell },
     { title: "Reports", url: "/school-admin/reports", icon: BarChart3 },
     { title: "Staff Access", url: "/school-admin/staff-access", icon: Users },
+    { title: "Subscription", url: "/school-admin/subscription", icon: Crown },
     { title: "Profile", url: "/school-admin/profile", icon: Settings },
   ],
   teacher: [
@@ -158,9 +161,9 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <Sidebar className="border-r border-sidebar-border">
-          <div className="p-4 border-b border-sidebar-border">
+          <div className="p-4 border-b border-sidebar-border bg-sidebar">
             <Link to="/" className="flex items-center gap-2">
-              <img src={logo} alt="SkoolSetu" className="h-8" />
+              <img src={logo} alt="SkoolSetu" className="h-8 brightness-0 invert" />
             </Link>
           </div>
           <SidebarContent>
@@ -244,8 +247,11 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
             </div>
           </header>
 
+          {/* Trial Countdown Banner */}
+          {role === "school_admin" && <TrialCountdownBanner />}
+
           {/* Subscription Warning for non-active */}
-          {role !== "super_admin" && !isSubscriptionActive && subscription && (
+          {role !== "super_admin" && !isSubscriptionActive && subscription && subscription.status !== "trial" && (
             <div className="bg-destructive/10 border-b border-destructive/20 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-5 w-5" />

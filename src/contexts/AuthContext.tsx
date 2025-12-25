@@ -20,6 +20,8 @@ interface Subscription {
   trial_end_date: string;
   subscription_start_date: string | null;
   subscription_end_date: string | null;
+  student_count: number | null;
+  billing_cycle: string | null;
 }
 
 interface AuthContextType {
