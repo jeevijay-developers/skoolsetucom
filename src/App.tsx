@@ -35,6 +35,15 @@ import StudentDashboard from "./pages/student/Dashboard";
 
 // Super Admin pages
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
+import SuperAdminSchools from "./pages/super-admin/Schools";
+import SuperAdminSubscriptions from "./pages/super-admin/Subscriptions";
+import SuperAdminPayments from "./pages/super-admin/Payments";
+import SuperAdminCoupons from "./pages/super-admin/Coupons";
+
+// Teacher pages extended
+import TeacherAttendance from "./pages/teacher/Attendance";
+import TeacherExamMarks from "./pages/teacher/ExamMarks";
+import TeacherStudents from "./pages/teacher/Students";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +83,15 @@ const App = () => (
 
               {/* Super Admin Routes */}
               <Route path="/super-admin" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminDashboard /></ProtectedRoute>} />
+              <Route path="/super-admin/schools" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminSchools /></ProtectedRoute>} />
+              <Route path="/super-admin/subscriptions" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminSubscriptions /></ProtectedRoute>} />
+              <Route path="/super-admin/payments" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminPayments /></ProtectedRoute>} />
+              <Route path="/super-admin/coupons" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminCoupons /></ProtectedRoute>} />
+
+              {/* Teacher Routes Extended */}
+              <Route path="/teacher/attendance" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherAttendance /></ProtectedRoute>} />
+              <Route path="/teacher/exam-marks" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherExamMarks /></ProtectedRoute>} />
+              <Route path="/teacher/students" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherStudents /></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
