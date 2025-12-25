@@ -626,29 +626,56 @@ const StudentDashboard = () => {
             border: '12px solid hsl(30, 59%, 35%)',
             boxShadow: 'inset 0 0 40px rgba(0,0,0,0.4), 0 4px 20px rgba(0,0,0,0.3)'
           }}>
+            {/* Floating chalk dust particles */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {[...Array(12)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute rounded-full opacity-40"
+                  style={{
+                    width: `${2 + Math.random() * 4}px`,
+                    height: `${2 + Math.random() * 4}px`,
+                    background: 'rgba(255, 255, 255, 0.6)',
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    animation: `chalkFloat ${3 + Math.random() * 4}s ease-in-out infinite`,
+                    animationDelay: `${Math.random() * 2}s`,
+                  }}
+                />
+              ))}
+            </div>
+
             {/* Wood grain texture overlay for frame */}
             <div className="absolute inset-0 pointer-events-none" style={{
               background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.2) 100%)'
             }} />
             
-            <div className="p-6 md:p-8">
-              {/* Chalk header */}
+            <div className="p-6 md:p-8 relative z-10">
+              {/* Chalk header with glow animation */}
               <div className="text-center mb-6">
-                <h2 className="font-chalk text-2xl md:text-3xl tracking-wider" style={{ 
-                  color: 'rgba(255, 255, 255, 0.95)',
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
-                }}>
+                <h2 
+                  className="font-chalk text-2xl md:text-3xl tracking-wider animate-fade-in" 
+                  style={{ 
+                    color: 'rgba(255, 255, 255, 0.95)',
+                    textShadow: '2px 2px 4px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1)',
+                    animation: 'chalkGlow 3s ease-in-out infinite'
+                  }}
+                >
                   📋 NOTICE BOARD 📋
                 </h2>
-                <div className="mt-2 mx-auto w-48 h-0.5" style={{ 
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)' 
-                }} />
+                <div 
+                  className="mt-2 mx-auto w-48 h-0.5" 
+                  style={{ 
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)',
+                    animation: 'chalkLineAppear 1s ease-out forwards'
+                  }} 
+                />
               </div>
 
-              {/* Notices content */}
+              {/* Notices content with staggered animations */}
               {recentNotices.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="font-chalk text-xl" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                  <p className="font-chalk text-xl animate-fade-in" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                     No notices available
                   </p>
                 </div>
@@ -658,15 +685,30 @@ const StudentDashboard = () => {
                     <div 
                       key={notice.id} 
                       className="flex items-start gap-4 p-3 rounded-lg transition-all hover:bg-white/5"
+                      style={{
+                        animation: `chalkWrite 0.6s ease-out forwards`,
+                        animationDelay: `${0.2 + idx * 0.15}s`,
+                        opacity: 0
+                      }}
                     >
-                      <span className="font-chalk text-2xl" style={{ color: 'rgba(255, 255, 200, 0.9)' }}>
+                      <span 
+                        className="font-chalk text-2xl"
+                        style={{ 
+                          color: 'rgba(255, 255, 200, 0.9)',
+                          animation: 'chalkBounce 2s ease-in-out infinite',
+                          animationDelay: `${idx * 0.3}s`
+                        }}
+                      >
                         📌
                       </span>
                       <div className="flex-1">
-                        <p className="font-chalk text-lg md:text-xl leading-relaxed" style={{ 
-                          color: 'rgba(255, 255, 255, 0.95)',
-                          textShadow: '1px 1px 2px rgba(0,0,0,0.2)'
-                        }}>
+                        <p 
+                          className="font-chalk text-lg md:text-xl leading-relaxed" 
+                          style={{ 
+                            color: 'rgba(255, 255, 255, 0.95)',
+                            textShadow: '1px 1px 2px rgba(0,0,0,0.2), 0 0 8px rgba(255,255,255,0.05)'
+                          }}
+                        >
                           {notice.title}
                         </p>
                         <p className="font-chalk text-sm mt-1" style={{ color: 'rgba(255, 255, 200, 0.7)' }}>
@@ -679,11 +721,18 @@ const StudentDashboard = () => {
               )}
 
               {/* View all link */}
-              <div className="mt-6 text-center">
+              <div 
+                className="mt-6 text-center"
+                style={{
+                  animation: 'chalkWrite 0.6s ease-out forwards',
+                  animationDelay: '0.8s',
+                  opacity: 0
+                }}
+              >
                 <Link to="/student/notices">
                   <Button 
                     variant="ghost" 
-                    className="font-chalk text-lg hover:bg-white/10"
+                    className="font-chalk text-lg hover:bg-white/10 transition-all hover:scale-105"
                     style={{ color: 'rgba(255, 255, 200, 0.9)' }}
                   >
                     View All Notices →
@@ -692,10 +741,77 @@ const StudentDashboard = () => {
               </div>
 
               {/* Chalk dust effect at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 h-4 pointer-events-none" style={{
-                background: 'linear-gradient(to top, rgba(255,255,255,0.1), transparent)'
+              <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none" style={{
+                background: 'linear-gradient(to top, rgba(255,255,255,0.15), transparent)'
               }} />
             </div>
+
+            {/* CSS Animations */}
+            <style>{`
+              @keyframes chalkFloat {
+                0%, 100% { 
+                  transform: translateY(0) translateX(0) rotate(0deg); 
+                  opacity: 0.2;
+                }
+                25% { 
+                  transform: translateY(-15px) translateX(5px) rotate(45deg); 
+                  opacity: 0.5;
+                }
+                50% { 
+                  transform: translateY(-25px) translateX(-3px) rotate(90deg); 
+                  opacity: 0.3;
+                }
+                75% { 
+                  transform: translateY(-10px) translateX(-8px) rotate(135deg); 
+                  opacity: 0.4;
+                }
+              }
+              
+              @keyframes chalkWrite {
+                0% { 
+                  opacity: 0; 
+                  transform: translateX(-20px);
+                  filter: blur(2px);
+                }
+                100% { 
+                  opacity: 1; 
+                  transform: translateX(0);
+                  filter: blur(0);
+                }
+              }
+              
+              @keyframes chalkGlow {
+                0%, 100% { 
+                  text-shadow: 2px 2px 4px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1);
+                }
+                50% { 
+                  text-shadow: 2px 2px 4px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.2);
+                }
+              }
+              
+              @keyframes chalkLineAppear {
+                0% { 
+                  width: 0; 
+                  opacity: 0;
+                }
+                100% { 
+                  width: 12rem; 
+                  opacity: 1;
+                }
+              }
+              
+              @keyframes chalkBounce {
+                0%, 100% { 
+                  transform: rotate(0deg);
+                }
+                25% { 
+                  transform: rotate(-5deg);
+                }
+                75% { 
+                  transform: rotate(5deg);
+                }
+              }
+            `}</style>
           </div>
         </div>
       </DashboardLayout>
