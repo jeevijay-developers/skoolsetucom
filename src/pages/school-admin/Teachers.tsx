@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +33,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Mail } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap } from "lucide-react";
 
 interface Teacher {
   id: string;
@@ -45,6 +46,21 @@ interface Teacher {
   date_of_joining: string | null;
   is_active: boolean;
   user_id: string | null;
+}
+
+interface TeacherClass {
+  id: string;
+  class_id: string;
+  is_class_teacher: boolean;
+  classes?: { name: string; section: string | null } | null;
+}
+
+interface ClassSubject {
+  id: string;
+  class_id: string;
+  subject_id: string;
+  classes?: { name: string; section: string | null } | null;
+  subjects?: { name: string } | null;
 }
 
 const Teachers = () => {
@@ -66,6 +82,20 @@ const Teachers = () => {
   });
   const [createAccount, setCreateAccount] = useState(false);
   const [accountPassword, setAccountPassword] = useState("");
+
+  // Master data state
+  const [overviewDialogOpen, setOverviewDialogOpen] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
+  const [teacherSubjects, setTeacherSubjects] = useState<ClassSubject[]>([]);
+  const [baseSalary, setBaseSalary] = useState<number>(0);
+  const [loadingOverview, setLoadingOverview] = useState(false);
+
+  // Password change state
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   useEffect(() => {
     if (schoolId) {
@@ -90,6 +120,98 @@ const Teachers = () => {
       toast.error("Failed to load teachers");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewOverview = async (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setOverviewDialogOpen(true);
+    setLoadingOverview(true);
+
+    try {
+      // Fetch teacher's assigned classes
+      const { data: classData, error: classError } = await supabase
+        .from("teacher_classes")
+        .select(`
+          id, class_id, is_class_teacher,
+          classes:class_id (name, section)
+        `)
+        .eq("teacher_id", teacher.id)
+        .eq("school_id", schoolId!);
+
+      if (classError) throw classError;
+      setTeacherClasses(classData || []);
+
+      // Fetch teacher's assigned subjects
+      const { data: subjectData, error: subjectError } = await supabase
+        .from("class_subjects")
+        .select(`
+          id, class_id, subject_id,
+          classes:class_id (name, section),
+          subjects:subject_id (name)
+        `)
+        .eq("teacher_id", teacher.id)
+        .eq("school_id", schoolId!);
+
+      if (subjectError) throw subjectError;
+      setTeacherSubjects(subjectData || []);
+
+      // Fetch salary from employees table
+      if (teacher.email) {
+        const { data: empData } = await supabase
+          .from("employees")
+          .select("base_salary")
+          .eq("email", teacher.email)
+          .eq("school_id", schoolId!)
+          .maybeSingle();
+
+        setBaseSalary(empData?.base_salary || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching teacher overview:", error);
+      toast.error("Failed to load teacher details");
+    } finally {
+      setLoadingOverview(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedTeacher?.user_id) {
+      toast.error("This teacher has no login account");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      const { error } = await supabase.functions.invoke("create-teacher-login", {
+        body: {
+          teacher_id: selectedTeacher.id,
+          password: newPassword,
+          update_password: true
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Password updated successfully");
+      setPasswordDialogOpen(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error("Error updating password:", error);
+      toast.error(error.message || "Failed to update password");
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
@@ -545,10 +667,23 @@ const Teachers = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewOverview(teacher)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEdit(teacher)}>
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Edit
                                 </DropdownMenuItem>
+                                {teacher.user_id && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedTeacher(teacher);
+                                    setPasswordDialogOpen(true);
+                                  }}>
+                                    <Lock className="h-4 w-4 mr-2" />
+                                    Change Password
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => handleToggleActive(teacher)}>
                                   {teacher.is_active ? (
                                     <>
@@ -581,6 +716,206 @@ const Teachers = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Teacher Overview Dialog */}
+        <Dialog open={overviewDialogOpen} onOpenChange={setOverviewDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5" />
+                {selectedTeacher?.full_name} - Details
+              </DialogTitle>
+              <DialogDescription>
+                View and manage teacher information
+              </DialogDescription>
+            </DialogHeader>
+
+            {loadingOverview ? (
+              <div className="flex items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : selectedTeacher && (
+              <Tabs defaultValue="info" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="info">Basic Info</TabsTrigger>
+                  <TabsTrigger value="classes">Classes</TabsTrigger>
+                  <TabsTrigger value="subjects">Subjects</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="info" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Full Name</p>
+                      <p className="font-medium">{selectedTeacher.full_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium">{selectedTeacher.email || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium">{selectedTeacher.phone || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Employee ID</p>
+                      <p className="font-medium">{selectedTeacher.employee_id || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Qualification</p>
+                      <p className="font-medium">{selectedTeacher.qualification || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Date of Joining</p>
+                      <p className="font-medium">
+                        {selectedTeacher.date_of_joining
+                          ? new Date(selectedTeacher.date_of_joining).toLocaleDateString()
+                          : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Monthly Salary</p>
+                      <p className="font-medium">₹{baseSalary.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <Badge variant={selectedTeacher.is_active ? "default" : "secondary"}>
+                        {selectedTeacher.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-2">Subjects (expertise)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTeacher.subjects?.map((subject) => (
+                        <Badge key={subject} variant="outline">
+                          {subject}
+                        </Badge>
+                      )) || <span className="text-muted-foreground">No subjects specified</span>}
+                    </div>
+                  </div>
+
+                  {selectedTeacher.user_id && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => setPasswordDialogOpen(true)}
+                      >
+                        <Lock className="h-4 w-4 mr-2" />
+                        Change Password
+                      </Button>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="classes" className="space-y-4">
+                  {teacherClasses.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <BookOpen className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No classes assigned yet</p>
+                      <p className="text-sm">Assign classes from the Classes module</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {teacherClasses.map((tc) => (
+                        <div
+                          key={tc.id}
+                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                        >
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">
+                              {tc.classes?.name} {tc.classes?.section ? `- ${tc.classes.section}` : ""}
+                            </span>
+                          </div>
+                          {tc.is_class_teacher && (
+                            <Badge variant="secondary">Class Teacher</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="subjects" className="space-y-4">
+                  {teacherSubjects.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <GraduationCap className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No subjects assigned yet</p>
+                      <p className="text-sm">Assign subjects from the Classes module</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {teacherSubjects.map((cs) => (
+                        <div
+                          key={cs.id}
+                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                        >
+                          <div className="flex items-center gap-2">
+                            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{cs.subjects?.name}</span>
+                          </div>
+                          <Badge variant="outline">
+                            {cs.classes?.name} {cs.classes?.section ? `- ${cs.classes.section}` : ""}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Change Password Dialog */}
+        <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Password</DialogTitle>
+              <DialogDescription>
+                Set a new password for {selectedTeacher?.full_name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm password"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPasswordDialogOpen(false);
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleChangePassword} disabled={updatingPassword}>
+                {updatingPassword ? "Updating..." : "Update Password"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     </>
   );

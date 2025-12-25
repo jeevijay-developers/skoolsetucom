@@ -19,7 +19,40 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    const { teacher_data, employee_data, password, school_id } = await req.json();
+    const { teacher_data, employee_data, password, school_id, teacher_id, update_password } = await req.json();
+
+    // Handle password update for existing teacher
+    if (update_password && teacher_id) {
+      console.log("Updating password for teacher:", teacher_id);
+      
+      // Get teacher's user_id
+      const { data: teacher, error: teacherError } = await supabaseAdmin
+        .from("teachers")
+        .select("user_id, email")
+        .eq("id", teacher_id)
+        .single();
+
+      if (teacherError || !teacher?.user_id) {
+        throw new Error("Teacher not found or has no login account");
+      }
+
+      // Update password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        teacher.user_id,
+        { password: password }
+      );
+
+      if (updateError) {
+        console.error("Password update error:", updateError);
+        throw new Error(`Failed to update password: ${updateError.message}`);
+      }
+
+      console.log("Password updated successfully");
+      return new Response(
+        JSON.stringify({ success: true, message: "Password updated successfully" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
 
     console.log("Creating teacher with login:", { email: teacher_data?.email, school_id });
 
