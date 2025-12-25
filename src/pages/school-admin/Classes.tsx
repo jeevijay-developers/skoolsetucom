@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,20 +26,14 @@ interface Class {
 interface Teacher {
   id: string;
   full_name: string;
-}
-
-interface Subject {
-  id: string;
-  name: string;
-  code: string | null;
+  subjects: string[] | null;
 }
 
 interface ClassSubject {
   id: string;
-  subject_id: string;
+  subject_name: string;
   teacher_id: string | null;
-  subjects: Subject;
-  teachers?: Teacher | null;
+  teacher_name?: string | null;
 }
 
 interface Student {
@@ -55,7 +49,6 @@ const Classes = () => {
   const { schoolId } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
@@ -81,11 +74,29 @@ const Classes = () => {
   const [classStudents, setClassStudents] = useState<Student[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
+  // Get unique subjects from all teachers
+  const availableSubjects = useMemo(() => {
+    const subjectsSet = new Set<string>();
+    teachers.forEach(teacher => {
+      teacher.subjects?.forEach(subject => {
+        subjectsSet.add(subject.trim());
+      });
+    });
+    return Array.from(subjectsSet).sort();
+  }, [teachers]);
+
+  // Get teachers who can teach the selected subject
+  const teachersForSelectedSubject = useMemo(() => {
+    if (!selectedSubjectToAdd) return [];
+    return teachers.filter(teacher => 
+      teacher.subjects?.some(s => s.trim().toLowerCase() === selectedSubjectToAdd.toLowerCase())
+    );
+  }, [selectedSubjectToAdd, teachers]);
+
   useEffect(() => {
     if (schoolId) {
       fetchClasses();
       fetchTeachers();
-      fetchSubjects();
       fetchStudentCounts();
     }
   }, [schoolId]);
@@ -103,21 +114,11 @@ const Classes = () => {
   const fetchTeachers = async () => {
     const { data } = await supabase
       .from("teachers")
-      .select("id, full_name")
+      .select("id, full_name, subjects")
       .eq("school_id", schoolId)
       .eq("is_active", true)
       .order("full_name");
     setTeachers(data || []);
-  };
-
-  const fetchSubjects = async () => {
-    const { data } = await supabase
-      .from("subjects")
-      .select("id, name, code")
-      .eq("school_id", schoolId)
-      .eq("is_active", true)
-      .order("name");
-    setSubjects(data || []);
   };
 
   const fetchStudentCounts = async () => {
@@ -163,11 +164,28 @@ const Classes = () => {
     // Fetch class subjects with teacher info
     const { data: csData } = await supabase
       .from("class_subjects")
-      .select("id, subject_id, teacher_id, subjects(id, name, code), teachers(id, full_name)")
+      .select("id, subject_id, teacher_id, teachers(id, full_name)")
       .eq("class_id", classId)
       .eq("school_id", schoolId);
     
-    setClassSubjects((csData || []) as any);
+    // We need to also fetch subject names from subjects table for existing entries
+    // But since we're transitioning, we'll store subject_name directly going forward
+    // For now, get subjects to map IDs to names
+    const { data: subjectsData } = await supabase
+      .from("subjects")
+      .select("id, name")
+      .eq("school_id", schoolId);
+    
+    const subjectMap = new Map(subjectsData?.map(s => [s.id, s.name]) || []);
+    
+    const mappedSubjects: ClassSubject[] = (csData || []).map((cs: any) => ({
+      id: cs.id,
+      subject_name: subjectMap.get(cs.subject_id) || "Unknown Subject",
+      teacher_id: cs.teacher_id,
+      teacher_name: cs.teachers?.full_name || null,
+    }));
+    
+    setClassSubjects(mappedSubjects);
     
     // Get class teacher
     const cls = classes.find(c => c.id === classId);
@@ -271,19 +289,48 @@ const Classes = () => {
       toast.error("Please select a subject");
       return;
     }
+
+    if (!selectedSubjectTeacher || selectedSubjectTeacher === "_none") {
+      toast.error("Please select a teacher for this subject");
+      return;
+    }
     
     // Check if already added
-    if (classSubjects.some(cs => cs.subject_id === selectedSubjectToAdd)) {
+    if (classSubjects.some(cs => cs.subject_name.toLowerCase() === selectedSubjectToAdd.toLowerCase())) {
       toast.error("Subject already added to this class");
       return;
     }
     
     try {
-      const teacherIdToUse = selectedSubjectTeacher === "_none" ? null : (selectedSubjectTeacher || null);
+      // First, ensure the subject exists in subjects table or create it
+      let subjectId: string | null = null;
+      
+      // Check if subject exists
+      const { data: existingSubject } = await supabase
+        .from("subjects")
+        .select("id")
+        .eq("school_id", schoolId)
+        .ilike("name", selectedSubjectToAdd)
+        .maybeSingle();
+      
+      if (existingSubject) {
+        subjectId = existingSubject.id;
+      } else {
+        // Create the subject
+        const { data: newSubject, error: subjectError } = await supabase
+          .from("subjects")
+          .insert({ name: selectedSubjectToAdd, school_id: schoolId })
+          .select("id")
+          .single();
+        
+        if (subjectError) throw subjectError;
+        subjectId = newSubject.id;
+      }
+      
       await supabase.from("class_subjects").insert({
         class_id: selectedClass.id,
-        subject_id: selectedSubjectToAdd,
-        teacher_id: teacherIdToUse,
+        subject_id: subjectId,
+        teacher_id: selectedSubjectTeacher,
         school_id: schoolId,
       });
       toast.success("Subject added to class");
@@ -486,33 +533,53 @@ const Classes = () => {
                     {/* Add Subject */}
                     <div className="p-4 border rounded-lg bg-muted/30">
                       <h4 className="font-medium mb-3">Add Subject to Class</h4>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Select value={selectedSubjectToAdd} onValueChange={setSelectedSubjectToAdd}>
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Select Subject" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {subjects
-                              .filter(s => !classSubjects.some(cs => cs.subject_id === s.id))
-                              .map((s) => (
-                                <SelectItem key={s.id} value={s.id}>{s.name} {s.code ? `(${s.code})` : ""}</SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <Select value={selectedSubjectTeacher} onValueChange={setSelectedSubjectTeacher}>
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Subject Teacher (Optional)" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="_none">No Teacher</SelectItem>
-                            {teachers.map((t) => (
-                              <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button onClick={handleAddSubjectToClass}>
-                          <Plus className="h-4 w-4 mr-1" />Add
-                        </Button>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Select a subject from teachers' subject list, then choose a teacher who can teach it.
+                      </p>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Select value={selectedSubjectToAdd} onValueChange={(val) => {
+                            setSelectedSubjectToAdd(val);
+                            setSelectedSubjectTeacher(""); // Reset teacher when subject changes
+                          }}>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Step 1: Select Subject" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableSubjects
+                                .filter(s => !classSubjects.some(cs => cs.subject_name.toLowerCase() === s.toLowerCase()))
+                                .map((s) => (
+                                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <Select 
+                            value={selectedSubjectTeacher} 
+                            onValueChange={setSelectedSubjectTeacher}
+                            disabled={!selectedSubjectToAdd}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder={selectedSubjectToAdd ? "Step 2: Select Teacher" : "Select subject first"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teachersForSelectedSubject.length === 0 ? (
+                                <SelectItem value="_none" disabled>No teachers available</SelectItem>
+                              ) : (
+                                teachersForSelectedSubject.map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <Button onClick={handleAddSubjectToClass} disabled={!selectedSubjectToAdd || !selectedSubjectTeacher}>
+                            <Plus className="h-4 w-4 mr-1" />Add
+                          </Button>
+                        </div>
+                        {availableSubjects.length === 0 && (
+                          <p className="text-sm text-amber-600">
+                            No subjects available. Add subjects to teachers first in the Teachers section.
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -536,10 +603,7 @@ const Classes = () => {
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <BookOpen className="h-4 w-4 text-muted-foreground" />
-                                  <span className="font-medium">{cs.subjects.name}</span>
-                                  {cs.subjects.code && (
-                                    <Badge variant="secondary" className="text-xs">{cs.subjects.code}</Badge>
-                                  )}
+                                  <span className="font-medium">{cs.subject_name}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -552,7 +616,7 @@ const Classes = () => {
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="_none">No Teacher</SelectItem>
-                                    {teachers.map((t) => (
+                                    {teachers.filter(t => t.subjects?.some(s => s.trim().toLowerCase() === cs.subject_name.toLowerCase())).map((t) => (
                                       <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
                                     ))}
                                   </SelectContent>

@@ -500,26 +500,32 @@ const Teachers = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="subjects">Subjects (comma-separated)</Label>
-                        <Input
-                          id="subjects"
-                          value={formData.subjects}
-                          onChange={(e) => setFormData({ ...formData, subjects: e.target.value })}
-                          placeholder="Mathematics, Science, English"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="base_salary">Monthly Salary (₹)</Label>
-                        <Input
-                          id="base_salary"
-                          type="number"
-                          value={formData.base_salary}
-                          onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
-                          placeholder="25000"
-                        />
-                      </div>
+                    <div className="p-4 border rounded-lg bg-primary/5 space-y-2">
+                      <Label htmlFor="subjects" className="text-base font-semibold flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        Subjects This Teacher Can Teach *
+                      </Label>
+                      <Input
+                        id="subjects"
+                        value={formData.subjects}
+                        onChange={(e) => setFormData({ ...formData, subjects: e.target.value })}
+                        placeholder="Mathematics, Science, English"
+                        className="text-base"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Enter subjects separated by commas. These subjects will be available for class assignment.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="base_salary">Monthly Salary (₹)</Label>
+                      <Input
+                        id="base_salary"
+                        type="number"
+                        value={formData.base_salary}
+                        onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
+                        placeholder="25000"
+                      />
                     </div>
 
                     {!editingTeacher && (
