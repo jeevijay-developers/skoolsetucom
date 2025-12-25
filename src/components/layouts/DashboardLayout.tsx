@@ -84,6 +84,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Greetings", url: "/school-admin/greetings", icon: Bell },
     { title: "Notices", url: "/school-admin/notices", icon: Bell },
     { title: "Reports", url: "/school-admin/reports", icon: BarChart3 },
+    { title: "Staff Access", url: "/school-admin/staff-access", icon: Users },
     { title: "Profile", url: "/school-admin/profile", icon: Settings },
   ],
   teacher: [
