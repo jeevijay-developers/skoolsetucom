@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -17,23 +18,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap, Phone, Calendar, IndianRupee } from "lucide-react";
 
 interface Teacher {
   id: string;
@@ -588,133 +582,174 @@ const Teachers = () => {
             </CardContent>
           </Card>
 
-          {/* Teachers Table */}
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>All Teachers ({filteredTeachers.length})</CardTitle>
-              <CardDescription>List of all teachers in your school</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              ) : filteredTeachers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No teachers found</p>
+          {/* Teachers Grid */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">All Teachers ({filteredTeachers.length})</h2>
+            </div>
+            
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : filteredTeachers.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <GraduationCap className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground mb-2">No teachers found</p>
                   <Button
-                    variant="link"
+                    variant="outline"
                     onClick={() => setIsDialogOpen(true)}
                     disabled={!isSubscriptionActive}
                   >
+                    <Plus className="h-4 w-4 mr-2" />
                     Add your first teacher
                   </Button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Subjects</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Account</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredTeachers.map((teacher) => (
-                        <TableRow key={teacher.id}>
-                          <TableCell className="font-medium">{teacher.full_name}</TableCell>
-                          <TableCell>{teacher.email || "-"}</TableCell>
-                          <TableCell>{teacher.phone || "-"}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {teacher.subjects?.slice(0, 2).map((subject) => (
-                                <Badge key={subject} variant="outline" className="text-xs">
-                                  {subject}
-                                </Badge>
-                              ))}
-                              {teacher.subjects && teacher.subjects.length > 2 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{teacher.subjects.length - 2}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={teacher.is_active ? "default" : "secondary"}>
-                              {teacher.is_active ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {teacher.user_id ? (
-                              <Badge variant="secondary" className="bg-secondary/10 text-secondary">
-                                <Mail className="h-3 w-3 mr-1" />
-                                Has Login
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredTeachers.map((teacher) => (
+                  <Card 
+                    key={teacher.id} 
+                    className={`group hover:shadow-lg transition-all duration-200 ${
+                      !teacher.is_active ? 'opacity-60' : ''
+                    }`}
+                  >
+                    <CardContent className="p-4">
+                      {/* Header with Avatar and Actions */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12 border-2 border-primary/20">
+                            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                              {teacher.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="font-semibold text-foreground leading-tight">
+                              {teacher.full_name}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                              {teacher.employee_id || 'No ID'}
+                            </p>
+                          </div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewOverview(teacher)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEdit(teacher)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            {teacher.user_id && (
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedTeacher(teacher);
+                                setPasswordDialogOpen(true);
+                              }}>
+                                <Lock className="h-4 w-4 mr-2" />
+                                Change Password
+                              </DropdownMenuItem>
                             )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewOverview(teacher)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEdit(teacher)}>
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                {teacher.user_id && (
-                                  <DropdownMenuItem onClick={() => {
-                                    setSelectedTeacher(teacher);
-                                    setPasswordDialogOpen(true);
-                                  }}>
-                                    <Lock className="h-4 w-4 mr-2" />
-                                    Change Password
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onClick={() => handleToggleActive(teacher)}>
-                                  {teacher.is_active ? (
-                                    <>
-                                      <UserX className="h-4 w-4 mr-2" />
-                                      Deactivate
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserCheck className="h-4 w-4 mr-2" />
-                                      Activate
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDelete(teacher)}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleToggleActive(teacher)}>
+                              {teacher.is_active ? (
+                                <>
+                                  <UserX className="h-4 w-4 mr-2" />
+                                  Deactivate
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Activate
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(teacher)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {/* Contact Info */}
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-muted-foreground truncate">
+                            {teacher.email || 'No email'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-muted-foreground">
+                            {teacher.phone || 'No phone'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Subjects */}
+                      <div className="mb-3">
+                        <div className="flex flex-wrap gap-1">
+                          {teacher.subjects?.slice(0, 3).map((subject) => (
+                            <Badge key={subject} variant="secondary" className="text-xs font-normal">
+                              {subject}
+                            </Badge>
+                          ))}
+                          {teacher.subjects && teacher.subjects.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{teacher.subjects.length - 3}
+                            </Badge>
+                          )}
+                          {(!teacher.subjects || teacher.subjects.length === 0) && (
+                            <span className="text-xs text-muted-foreground italic">No subjects</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer with Status */}
+                      <div className="flex items-center justify-between pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={teacher.is_active ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {teacher.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                          {teacher.user_id && (
+                            <Badge variant="outline" className="text-xs bg-primary/5">
+                              <Mail className="h-3 w-3 mr-1" />
+                              Login
+                            </Badge>
+                          )}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 text-xs"
+                          onClick={() => handleViewOverview(teacher)}
+                        >
+                          View
+                          <Eye className="h-3 w-3 ml-1" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Teacher Overview Dialog */}
