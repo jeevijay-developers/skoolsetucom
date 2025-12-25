@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +42,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy, Eye, Lock, Upload, User } from "lucide-react";
 
 interface Student {
   id: string;
@@ -48,11 +51,15 @@ interface Student {
   admission_number: string | null;
   class_id: string | null;
   parent_name: string | null;
+  mother_name: string | null;
   parent_phone: string | null;
   parent_email: string | null;
   parent_user_id: string | null;
   gender: string | null;
   date_of_birth: string | null;
+  address: string | null;
+  blood_group: string | null;
+  photo_url: string | null;
   is_active: boolean;
   classes?: { name: string; section: string | null } | null;
 }
@@ -61,6 +68,20 @@ interface Class {
   id: string;
   name: string;
   section: string | null;
+}
+
+interface StudentFee {
+  id: string;
+  amount: number;
+  paid_amount: number | null;
+  status: string | null;
+  due_date: string;
+  fee_structures?: { name: string } | null;
+}
+
+interface AttendanceRecord {
+  date: string;
+  status: string;
 }
 
 const Students = () => {
@@ -75,16 +96,29 @@ const Students = () => {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [creatingLogin, setCreatingLogin] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [overviewDialogOpen, setOverviewDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
+  const [studentAttendance, setStudentAttendance] = useState<AttendanceRecord[]>([]);
+  const [loadingOverview, setLoadingOverview] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
     roll_number: "",
     admission_number: "",
     class_id: "",
     parent_name: "",
+    mother_name: "",
     parent_phone: "",
     parent_email: "",
     gender: "",
     date_of_birth: "",
+    address: "",
+    blood_group: "",
   });
 
   useEffect(() => {
@@ -102,8 +136,8 @@ const Students = () => {
         .from("students")
         .select(`
           id, full_name, roll_number, admission_number, class_id,
-          parent_name, parent_phone, parent_email, parent_user_id,
-          gender, date_of_birth, is_active,
+          parent_name, mother_name, parent_phone, parent_email, parent_user_id,
+          gender, date_of_birth, address, blood_group, photo_url, is_active,
           classes:class_id (name, section)
         `)
         .eq("school_id", schoolId)
@@ -178,6 +212,56 @@ const Students = () => {
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, studentId?: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image size should be less than 2MB");
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${studentId || 'temp'}-${Date.now()}.${fileExt}`;
+      const filePath = `${schoolId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('student-photos')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('student-photos')
+        .getPublicUrl(filePath);
+
+      if (studentId) {
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({ photo_url: publicUrl })
+          .eq('id', studentId);
+
+        if (updateError) throw updateError;
+        toast.success("Photo uploaded successfully");
+        fetchStudents();
+      }
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Error uploading photo:", error);
+      toast.error("Failed to upload photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -199,10 +283,13 @@ const Students = () => {
         admission_number: formData.admission_number || null,
         class_id: formData.class_id || null,
         parent_name: formData.parent_name || null,
+        mother_name: formData.mother_name || null,
         parent_phone: formData.parent_phone || null,
         parent_email: formData.parent_email || null,
         gender: formData.gender || null,
         date_of_birth: formData.date_of_birth || null,
+        address: formData.address || null,
+        blood_group: formData.blood_group || null,
       };
 
       if (editingStudent) {
@@ -239,10 +326,13 @@ const Students = () => {
       admission_number: student.admission_number || "",
       class_id: student.class_id || "",
       parent_name: student.parent_name || "",
+      mother_name: student.mother_name || "",
       parent_phone: student.parent_phone || "",
       parent_email: student.parent_email || "",
       gender: student.gender || "",
       date_of_birth: student.date_of_birth || "",
+      address: student.address || "",
+      blood_group: student.blood_group || "",
     });
     setIsDialogOpen(true);
   };
@@ -281,6 +371,87 @@ const Students = () => {
     }
   };
 
+  const handleViewOverview = async (student: Student) => {
+    setSelectedStudent(student);
+    setOverviewDialogOpen(true);
+    setLoadingOverview(true);
+
+    try {
+      // Fetch student fees
+      const { data: fees, error: feesError } = await supabase
+        .from("student_fees")
+        .select(`
+          id, amount, paid_amount, status, due_date,
+          fee_structures:fee_structure_id (name)
+        `)
+        .eq("student_id", student.id)
+        .order("due_date", { ascending: false });
+
+      if (feesError) throw feesError;
+      setStudentFees(fees || []);
+
+      // Fetch attendance records (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: attendance, error: attendanceError } = await supabase
+        .from("attendance")
+        .select("date, status")
+        .eq("student_id", student.id)
+        .gte("date", thirtyDaysAgo.toISOString().split('T')[0])
+        .order("date", { ascending: false });
+
+      if (attendanceError) throw attendanceError;
+      setStudentAttendance(attendance || []);
+    } catch (error) {
+      console.error("Error fetching student overview:", error);
+      toast.error("Failed to load student details");
+    } finally {
+      setLoadingOverview(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedStudent?.parent_user_id) {
+      toast.error("No parent login exists for this student");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      // Note: This requires admin privileges - we'll use edge function
+      const { error } = await supabase.functions.invoke("create-parent-login", {
+        body: { 
+          student_id: selectedStudent.id, 
+          temp_password: newPassword,
+          update_password: true 
+        },
+      });
+
+      if (error) throw error;
+      
+      toast.success("Password updated successfully");
+      setPasswordDialogOpen(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error("Error updating password:", error);
+      toast.error(error.message || "Failed to update password");
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
   const resetForm = () => {
     setEditingStudent(null);
     setFormData({
@@ -289,10 +460,13 @@ const Students = () => {
       admission_number: "",
       class_id: "",
       parent_name: "",
+      mother_name: "",
       parent_phone: "",
       parent_email: "",
       gender: "",
       date_of_birth: "",
+      address: "",
+      blood_group: "",
     });
   };
 
@@ -306,6 +480,21 @@ const Students = () => {
 
     return matchesSearch && matchesClass;
   });
+
+  const calculateFeeSummary = () => {
+    const totalFees = studentFees.reduce((sum, fee) => sum + fee.amount, 0);
+    const paidFees = studentFees.reduce((sum, fee) => sum + (fee.paid_amount || 0), 0);
+    const pendingFees = totalFees - paidFees;
+    return { totalFees, paidFees, pendingFees };
+  };
+
+  const calculateAttendanceSummary = () => {
+    const total = studentAttendance.length;
+    const present = studentAttendance.filter(a => a.status === 'present').length;
+    const absent = studentAttendance.filter(a => a.status === 'absent').length;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+    return { total, present, absent, percentage };
+  };
 
   return (
     <>
@@ -339,6 +528,35 @@ const Students = () => {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
+                    {/* Photo Upload for existing student */}
+                    {editingStudent && (
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-20 w-20">
+                          <AvatarImage src={editingStudent.photo_url || undefined} />
+                          <AvatarFallback>
+                            <User className="h-10 w-10" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <Label htmlFor="photo-upload" className="cursor-pointer">
+                            <div className="flex items-center gap-2 text-sm text-primary hover:underline">
+                              <Upload className="h-4 w-4" />
+                              {uploadingPhoto ? "Uploading..." : "Upload Photo"}
+                            </div>
+                          </Label>
+                          <Input
+                            id="photo-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handlePhotoUpload(e, editingStudent.id)}
+                            disabled={uploadingPhoto}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Max 2MB, JPG/PNG</p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="full_name">Full Name *</Label>
@@ -390,7 +608,7 @@ const Students = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="gender">Gender</Label>
                         <Select
@@ -416,20 +634,63 @@ const Students = () => {
                           onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="blood_group">Blood Group</Label>
+                        <Select
+                          value={formData.blood_group}
+                          onValueChange={(value) => setFormData({ ...formData, blood_group: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="A+">A+</SelectItem>
+                            <SelectItem value="A-">A-</SelectItem>
+                            <SelectItem value="B+">B+</SelectItem>
+                            <SelectItem value="B-">B-</SelectItem>
+                            <SelectItem value="AB+">AB+</SelectItem>
+                            <SelectItem value="AB-">AB-</SelectItem>
+                            <SelectItem value="O+">O+</SelectItem>
+                            <SelectItem value="O-">O-</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Address</Label>
+                      <Textarea
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="Student's residential address"
+                        rows={2}
+                      />
                     </div>
 
                     <div className="border-t pt-4">
                       <h4 className="font-medium mb-3">Parent/Guardian Details</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="parent_name">Parent Name</Label>
+                          <Label htmlFor="parent_name">Father's Name</Label>
                           <Input
                             id="parent_name"
                             value={formData.parent_name}
                             onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
-                            placeholder="Parent's name"
+                            placeholder="Father's name"
                           />
                         </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="mother_name">Mother's Name</Label>
+                          <Input
+                            id="mother_name"
+                            value={formData.mother_name}
+                            onChange={(e) => setFormData({ ...formData, mother_name: e.target.value })}
+                            placeholder="Mother's name"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         <div className="space-y-2">
                           <Label htmlFor="parent_phone">Parent Phone</Label>
                           <Input
@@ -439,16 +700,16 @@ const Students = () => {
                             placeholder="9876543210"
                           />
                         </div>
-                      </div>
-                      <div className="space-y-2 mt-4">
-                        <Label htmlFor="parent_email">Parent Email</Label>
-                        <Input
-                          id="parent_email"
-                          type="email"
-                          value={formData.parent_email}
-                          onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
-                          placeholder="parent@email.com"
-                        />
+                        <div className="space-y-2">
+                          <Label htmlFor="parent_email">Parent Email</Label>
+                          <Input
+                            id="parent_email"
+                            type="email"
+                            value={formData.parent_email}
+                            onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
+                            placeholder="parent@email.com"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -522,6 +783,7 @@ const Students = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Photo</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Class</TableHead>
                         <TableHead>Roll No.</TableHead>
@@ -534,6 +796,14 @@ const Students = () => {
                     <TableBody>
                       {filteredStudents.map((student) => (
                         <TableRow key={student.id}>
+                          <TableCell>
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={student.photo_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {student.full_name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TableCell>
                           <TableCell className="font-medium">{student.full_name}</TableCell>
                           <TableCell>
                             {student.classes
@@ -556,6 +826,10 @@ const Students = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewOverview(student)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Overview
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEdit(student)}>
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Edit
@@ -580,6 +854,15 @@ const Students = () => {
                                   <Key className="h-4 w-4 mr-2" />
                                   {student.parent_user_id ? "Login Created" : "Create Parent Login"}
                                 </DropdownMenuItem>
+                                {student.parent_user_id && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedStudent(student);
+                                    setPasswordDialogOpen(true);
+                                  }}>
+                                    <Lock className="h-4 w-4 mr-2" />
+                                    Change Password
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   onClick={() => handleDelete(student)}
                                   className="text-destructive"
@@ -637,6 +920,280 @@ const Students = () => {
               )}
               <DialogFooter>
                 <Button onClick={() => setLoginDialogOpen(false)}>Close</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Student Overview Dialog */}
+          <Dialog open={overviewDialogOpen} onOpenChange={setOverviewDialogOpen}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Student Overview</DialogTitle>
+                <DialogDescription>
+                  Complete details and summary for {selectedStudent?.full_name}
+                </DialogDescription>
+              </DialogHeader>
+              
+              {loadingOverview ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : selectedStudent && (
+                <Tabs defaultValue="details" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="details">Details</TabsTrigger>
+                    <TabsTrigger value="fees">Fees</TabsTrigger>
+                    <TabsTrigger value="attendance">Attendance</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="details" className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="h-24 w-24">
+                        <AvatarImage src={selectedStudent.photo_url || undefined} />
+                        <AvatarFallback className="text-2xl">
+                          {selectedStudent.full_name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Full Name</p>
+                          <p className="font-medium">{selectedStudent.full_name}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Class</p>
+                          <p className="font-medium">
+                            {selectedStudent.classes
+                              ? `${selectedStudent.classes.name}${selectedStudent.classes.section ? ` - ${selectedStudent.classes.section}` : ""}`
+                              : "-"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Roll Number</p>
+                          <p className="font-medium">{selectedStudent.roll_number || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Admission Number</p>
+                          <p className="font-medium">{selectedStudent.admission_number || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Gender</p>
+                          <p className="font-medium capitalize">{selectedStudent.gender || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Date of Birth</p>
+                          <p className="font-medium">{selectedStudent.date_of_birth || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Blood Group</p>
+                          <p className="font-medium">{selectedStudent.blood_group || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Status</p>
+                          <Badge variant={selectedStudent.is_active ? "default" : "secondary"}>
+                            {selectedStudent.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium mb-3">Address</h4>
+                      <p className="text-sm">{selectedStudent.address || "Not provided"}</p>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium mb-3">Parent/Guardian Information</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Father's Name</p>
+                          <p className="font-medium">{selectedStudent.parent_name || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Mother's Name</p>
+                          <p className="font-medium">{selectedStudent.mother_name || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Phone</p>
+                          <p className="font-medium">{selectedStudent.parent_phone || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="font-medium">{selectedStudent.parent_email || "-"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="fees" className="space-y-4">
+                    {(() => {
+                      const { totalFees, paidFees, pendingFees } = calculateFeeSummary();
+                      return (
+                        <div className="grid grid-cols-3 gap-4">
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Total Fees</p>
+                              <p className="text-2xl font-bold">₹{totalFees.toLocaleString()}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Paid</p>
+                              <p className="text-2xl font-bold text-green-600">₹{paidFees.toLocaleString()}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Pending</p>
+                              <p className="text-2xl font-bold text-red-600">₹{pendingFees.toLocaleString()}</p>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      );
+                    })()}
+
+                    {studentFees.length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Fee Type</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Paid</TableHead>
+                            <TableHead>Due Date</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {studentFees.map((fee) => (
+                            <TableRow key={fee.id}>
+                              <TableCell>{fee.fee_structures?.name || "General Fee"}</TableCell>
+                              <TableCell>₹{fee.amount.toLocaleString()}</TableCell>
+                              <TableCell>₹{(fee.paid_amount || 0).toLocaleString()}</TableCell>
+                              <TableCell>{fee.due_date}</TableCell>
+                              <TableCell>
+                                <Badge variant={fee.status === 'paid' ? 'default' : fee.status === 'partial' ? 'secondary' : 'destructive'}>
+                                  {fee.status || 'pending'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <p className="text-center text-muted-foreground py-8">No fee records found</p>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="attendance" className="space-y-4">
+                    {(() => {
+                      const { total, present, absent, percentage } = calculateAttendanceSummary();
+                      return (
+                        <div className="grid grid-cols-4 gap-4">
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Total Days</p>
+                              <p className="text-2xl font-bold">{total}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Present</p>
+                              <p className="text-2xl font-bold text-green-600">{present}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Absent</p>
+                              <p className="text-2xl font-bold text-red-600">{absent}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Percentage</p>
+                              <p className="text-2xl font-bold">{percentage}%</p>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      );
+                    })()}
+
+                    {studentAttendance.length > 0 ? (
+                      <div className="max-h-64 overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {studentAttendance.map((record, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{record.date}</TableCell>
+                                <TableCell>
+                                  <Badge variant={record.status === 'present' ? 'default' : 'destructive'}>
+                                    {record.status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground py-8">No attendance records found (last 30 days)</p>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              )}
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOverviewDialogOpen(false)}>Close</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Change Password Dialog */}
+          <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Change Parent Password</DialogTitle>
+                <DialogDescription>
+                  Set a new password for {selectedStudent?.parent_email}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setPasswordDialogOpen(false);
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleChangePassword} disabled={updatingPassword}>
+                  {updatingPassword ? "Updating..." : "Update Password"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

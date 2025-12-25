@@ -837,10 +837,12 @@ export type Database = {
           gender: string | null
           id: string
           is_active: boolean | null
+          mother_name: string | null
           parent_email: string | null
           parent_name: string | null
           parent_phone: string | null
           parent_user_id: string | null
+          photo_url: string | null
           roll_number: string | null
           school_id: string
           updated_at: string
@@ -857,10 +859,12 @@ export type Database = {
           gender?: string | null
           id?: string
           is_active?: boolean | null
+          mother_name?: string | null
           parent_email?: string | null
           parent_name?: string | null
           parent_phone?: string | null
           parent_user_id?: string | null
+          photo_url?: string | null
           roll_number?: string | null
           school_id: string
           updated_at?: string
@@ -877,10 +881,12 @@ export type Database = {
           gender?: string | null
           id?: string
           is_active?: boolean | null
+          mother_name?: string | null
           parent_email?: string | null
           parent_name?: string | null
           parent_phone?: string | null
           parent_user_id?: string | null
+          photo_url?: string | null
           roll_number?: string | null
           school_id?: string
           updated_at?: string
