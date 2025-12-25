@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, DollarSign, CreditCard, Receipt, CheckCircle, Download, MessageCircle } from "lucide-react";
+import { Plus, Search, DollarSign, CreditCard, Receipt, CheckCircle, Download, MessageCircle, IndianRupee } from "lucide-react";
 import { format } from "date-fns";
 import { downloadFeeReceipt } from "@/utils/pdfGenerator";
 
@@ -52,6 +53,7 @@ interface Class {
 }
 
 const Fees = () => {
+  const navigate = useNavigate();
   const { schoolId } = useAuth();
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
@@ -258,13 +260,18 @@ const Fees = () => {
               <h1 className="text-2xl font-bold">Fees Management</h1>
               <p className="text-muted-foreground">Manage fee structures and collect payments</p>
             </div>
-            <Dialog open={isStructureDialogOpen} onOpenChange={setIsStructureDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Fee Structure
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-3">
+              <Button onClick={() => navigate("/school-admin/collect-fee")} variant="default">
+                <IndianRupee className="h-4 w-4 mr-2" />
+                Collect Fee
+              </Button>
+              <Dialog open={isStructureDialogOpen} onOpenChange={setIsStructureDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Fee Structure
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <form onSubmit={handleCreateStructure}>
                   <DialogHeader>
@@ -328,6 +335,7 @@ const Fees = () => {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           {/* Stats */}
