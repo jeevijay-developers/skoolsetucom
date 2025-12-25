@@ -790,6 +790,7 @@ const Students = () => {
                         <TableHead>Parent</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Master Data</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -818,6 +819,16 @@ const Students = () => {
                               {student.is_active ? "Active" : "Inactive"}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewOverview(student)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -826,10 +837,6 @@ const Students = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewOverview(student)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Overview
-                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEdit(student)}>
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Edit
@@ -924,13 +931,13 @@ const Students = () => {
             </DialogContent>
           </Dialog>
 
-          {/* Student Overview Dialog */}
+          {/* Student Master Data Dialog */}
           <Dialog open={overviewDialogOpen} onOpenChange={setOverviewDialogOpen}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Student Overview</DialogTitle>
+                <DialogTitle>Master Data - {selectedStudent?.full_name}</DialogTitle>
                 <DialogDescription>
-                  Complete details and summary for {selectedStudent?.full_name}
+                  Complete student profile, fees, and attendance information
                 </DialogDescription>
               </DialogHeader>
               
