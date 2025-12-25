@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, ClipboardList, BookOpen, BarChart3, Eye, Pencil, Trash2, CheckCircle } from "lucide-react";
+import { Plus, ClipboardList, BookOpen, CheckCircle, Pencil, Trash2, Calendar, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 interface Exam {
@@ -38,6 +38,18 @@ interface ExamResult {
   students: { full_name: string; roll_number: string | null; classes: { name: string; section: string | null } | null } | null;
 }
 
+interface ExamSchedule {
+  id: string;
+  exam_id: string;
+  class_id: string;
+  subject: string;
+  exam_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  max_marks: number | null;
+  classes?: { name: string; section: string | null };
+}
+
 interface Class {
   id: string;
   name: string;
@@ -55,11 +67,13 @@ const Exams = () => {
   const { schoolId } = useAuth();
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<ExamResult[]>([]);
+  const [schedules, setSchedules] = useState<ExamSchedule[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>("");
+  const [activeTab, setActiveTab] = useState("results");
   
   // Create Exam Dialog
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -78,6 +92,17 @@ const Exams = () => {
     studentMarks: {} as Record<string, string>,
   });
 
+  // Schedule Dialog
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    class_id: "",
+    subject: "",
+    exam_date: "",
+    start_time: "",
+    end_time: "",
+    max_marks: "100",
+  });
+
   useEffect(() => {
     if (schoolId) {
       fetchExams();
@@ -88,6 +113,7 @@ const Exams = () => {
   useEffect(() => {
     if (selectedExam) {
       fetchResults(selectedExam.id);
+      fetchSchedules(selectedExam.id);
     }
   }, [selectedExam]);
 
@@ -127,6 +153,18 @@ const Exams = () => {
       .eq("exam_id", examId)
       .order("subject");
     setResults(data || []);
+  };
+
+  const fetchSchedules = async (examId: string) => {
+    const { data } = await supabase
+      .from("exam_schedules")
+      .select(`
+        *,
+        classes:class_id (name, section)
+      `)
+      .eq("exam_id", examId)
+      .order("exam_date");
+    setSchedules(data || []);
   };
 
   const fetchClasses = async () => {
@@ -175,6 +213,47 @@ const Exams = () => {
       setIsCreateOpen(false);
       setExamForm({ name: "", exam_type: "unit_test", start_date: "", end_date: "" });
       fetchExams();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleAddSchedule = async () => {
+    if (!selectedExam || !scheduleForm.class_id || !scheduleForm.subject || !scheduleForm.exam_date) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("exam_schedules").insert({
+        exam_id: selectedExam.id,
+        school_id: schoolId,
+        class_id: scheduleForm.class_id,
+        subject: scheduleForm.subject,
+        exam_date: scheduleForm.exam_date,
+        start_time: scheduleForm.start_time || null,
+        end_time: scheduleForm.end_time || null,
+        max_marks: parseFloat(scheduleForm.max_marks) || 100,
+      });
+
+      if (error) throw error;
+      toast.success("Schedule added successfully");
+      setIsScheduleOpen(false);
+      setScheduleForm({ class_id: "", subject: "", exam_date: "", start_time: "", end_time: "", max_marks: "100" });
+      fetchSchedules(selectedExam.id);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!confirm("Delete this schedule?")) return;
+
+    try {
+      const { error } = await supabase.from("exam_schedules").delete().eq("id", scheduleId);
+      if (error) throw error;
+      toast.success("Schedule deleted");
+      if (selectedExam) fetchSchedules(selectedExam.id);
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -243,11 +322,11 @@ const Exams = () => {
   };
 
   const handleDeleteExam = async (exam: Exam) => {
-    if (!confirm("Delete this exam and all its results?")) return;
+    if (!confirm("Delete this exam and all its results/schedules?")) return;
 
     try {
-      // Delete results first
       await supabase.from("exam_results").delete().eq("exam_id", exam.id);
+      await supabase.from("exam_schedules").delete().eq("exam_id", exam.id);
       const { error } = await supabase.from("exams").delete().eq("id", exam.id);
       if (error) throw error;
       
@@ -279,6 +358,14 @@ const Exams = () => {
     return acc;
   }, {} as Record<string, ExamResult[]>);
 
+  // Group schedules by class
+  const groupedSchedules = schedules.reduce((acc, schedule) => {
+    const className = schedule.classes ? `${schedule.classes.name}${schedule.classes.section ? ` - ${schedule.classes.section}` : ""}` : "Unknown";
+    if (!acc[className]) acc[className] = [];
+    acc[className].push(schedule);
+    return acc;
+  }, {} as Record<string, ExamSchedule[]>);
+
   return (
     <>
       <Helmet><title>Exams & Results - SkoolSetu</title></Helmet>
@@ -287,7 +374,7 @@ const Exams = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold">Exams & Results</h1>
-              <p className="text-muted-foreground">Create exams, enter marks, and publish results</p>
+              <p className="text-muted-foreground">Create exams, manage schedules, and publish results</p>
             </div>
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
@@ -446,17 +533,6 @@ const Exams = () => {
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setIsMarksOpen(true);
-                          setSelectedClass("");
-                        }}
-                      >
-                        <Pencil className="h-4 w-4 mr-1" />
-                        Enter Marks
-                      </Button>
-                      <Button
-                        size="sm"
                         variant={selectedExam.is_published ? "secondary" : "default"}
                         onClick={() => handleTogglePublish(selectedExam)}
                       >
@@ -476,67 +552,242 @@ const Exams = () => {
               <CardContent>
                 {!selectedExam ? (
                   <p className="text-muted-foreground text-center py-12">
-                    Select an exam from the list to view results
-                  </p>
-                ) : Object.keys(groupedResults).length === 0 ? (
-                  <p className="text-muted-foreground text-center py-12">
-                    No results entered for this exam yet
+                    Select an exam from the list to view details
                   </p>
                 ) : (
-                  <Tabs defaultValue={Object.keys(groupedResults)[0]}>
-                    <TabsList className="flex flex-wrap">
-                      {Object.keys(groupedResults).map((subject) => (
-                        <TabsTrigger key={subject} value={subject}>
-                          {subject}
-                        </TabsTrigger>
-                      ))}
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="schedule">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Schedule
+                      </TabsTrigger>
+                      <TabsTrigger value="results">
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        Results
+                      </TabsTrigger>
                     </TabsList>
-                    {Object.entries(groupedResults).map(([subject, subjectResults]) => (
-                      <TabsContent key={subject} value={subject}>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Student</TableHead>
-                              <TableHead>Class</TableHead>
-                              <TableHead>Marks</TableHead>
-                              <TableHead>Grade</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {subjectResults.map((result) => (
-                              <TableRow key={result.id}>
-                                <TableCell>
-                                  <div>
-                                    <p className="font-medium">{result.students?.full_name}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                      Roll: {result.students?.roll_number || "-"}
-                                    </p>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {result.students?.classes
-                                    ? `${result.students.classes.name}${result.students.classes.section ? ` - ${result.students.classes.section}` : ""}`
-                                    : "-"}
-                                </TableCell>
-                                <TableCell>
-                                  {result.obtained_marks} / {result.max_marks}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant={result.grade === "F" ? "destructive" : "secondary"}>
-                                    {result.grade}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
+
+                    {/* Schedule Tab */}
+                    <TabsContent value="schedule">
+                      <div className="space-y-4">
+                        <div className="flex justify-end">
+                          <Button size="sm" onClick={() => setIsScheduleOpen(true)}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Schedule
+                          </Button>
+                        </div>
+                        
+                        {schedules.length === 0 ? (
+                          <p className="text-muted-foreground text-center py-8">
+                            No schedule added for this exam yet
+                          </p>
+                        ) : (
+                          <div className="space-y-4">
+                            {Object.entries(groupedSchedules).map(([className, classSchedules]) => (
+                              <div key={className} className="border rounded-lg">
+                                <div className="bg-muted/50 px-4 py-2 font-medium border-b">
+                                  {className}
+                                </div>
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Subject</TableHead>
+                                      <TableHead>Date</TableHead>
+                                      <TableHead>Time</TableHead>
+                                      <TableHead>Max Marks</TableHead>
+                                      <TableHead className="w-10"></TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {classSchedules.map((schedule) => (
+                                      <TableRow key={schedule.id}>
+                                        <TableCell className="font-medium">{schedule.subject}</TableCell>
+                                        <TableCell>
+                                          {format(new Date(schedule.exam_date), "dd MMM yyyy")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {schedule.start_time && schedule.end_time ? (
+                                            <span className="flex items-center gap-1">
+                                              <Clock className="h-3 w-3" />
+                                              {schedule.start_time} - {schedule.end_time}
+                                            </span>
+                                          ) : (
+                                            "-"
+                                          )}
+                                        </TableCell>
+                                        <TableCell>{schedule.max_marks || 100}</TableCell>
+                                        <TableCell>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteSchedule(schedule.id)}
+                                          >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
                             ))}
-                          </TableBody>
-                        </Table>
-                      </TabsContent>
-                    ))}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* Results Tab */}
+                    <TabsContent value="results">
+                      <div className="space-y-4">
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setIsMarksOpen(true);
+                              setSelectedClass("");
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Enter Marks
+                          </Button>
+                        </div>
+
+                        {Object.keys(groupedResults).length === 0 ? (
+                          <p className="text-muted-foreground text-center py-8">
+                            No results entered for this exam yet
+                          </p>
+                        ) : (
+                          <Tabs defaultValue={Object.keys(groupedResults)[0]}>
+                            <TabsList className="flex flex-wrap">
+                              {Object.keys(groupedResults).map((subject) => (
+                                <TabsTrigger key={subject} value={subject}>
+                                  {subject}
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+                            {Object.entries(groupedResults).map(([subject, subjectResults]) => (
+                              <TabsContent key={subject} value={subject}>
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Student</TableHead>
+                                      <TableHead>Class</TableHead>
+                                      <TableHead>Marks</TableHead>
+                                      <TableHead>Grade</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {subjectResults.map((result) => (
+                                      <TableRow key={result.id}>
+                                        <TableCell>
+                                          <div>
+                                            <p className="font-medium">{result.students?.full_name}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                              Roll: {result.students?.roll_number || "-"}
+                                            </p>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell>
+                                          {result.students?.classes
+                                            ? `${result.students.classes.name}${result.students.classes.section ? ` - ${result.students.classes.section}` : ""}`
+                                            : "-"}
+                                        </TableCell>
+                                        <TableCell>
+                                          {result.obtained_marks} / {result.max_marks}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge variant={result.grade === "F" ? "destructive" : "secondary"}>
+                                            {result.grade}
+                                          </Badge>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </TabsContent>
+                            ))}
+                          </Tabs>
+                        )}
+                      </div>
+                    </TabsContent>
                   </Tabs>
                 )}
               </CardContent>
             </Card>
           </div>
+
+          {/* Schedule Dialog */}
+          <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Exam Schedule</DialogTitle>
+                <DialogDescription>Add subject-wise schedule for {selectedExam?.name}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Class *</Label>
+                  <Select value={scheduleForm.class_id} onValueChange={(v) => setScheduleForm({ ...scheduleForm, class_id: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map((cls) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name} {cls.section ? `- ${cls.section}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Subject *</Label>
+                  <Input
+                    value={scheduleForm.subject}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, subject: e.target.value })}
+                    placeholder="e.g., Mathematics"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Exam Date *</Label>
+                  <Input
+                    type="date"
+                    value={scheduleForm.exam_date}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, exam_date: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Start Time</Label>
+                    <Input
+                      type="time"
+                      value={scheduleForm.start_time}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, start_time: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>End Time</Label>
+                    <Input
+                      type="time"
+                      value={scheduleForm.end_time}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, end_time: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Marks</Label>
+                  <Input
+                    type="number"
+                    value={scheduleForm.max_marks}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, max_marks: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsScheduleOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddSchedule}>Add Schedule</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Marks Entry Dialog */}
           <Dialog open={isMarksOpen} onOpenChange={setIsMarksOpen}>

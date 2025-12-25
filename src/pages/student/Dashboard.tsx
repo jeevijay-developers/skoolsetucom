@@ -3,19 +3,23 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import StatsCard from "@/components/dashboard/StatsCard";
+import GreetingBanner from "@/components/GreetingBanner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, DollarSign, BookOpen, Bell, ArrowRight, CheckCircle, XCircle, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 interface StudentInfo {
   id: string;
   full_name: string;
   roll_number: string | null;
+  class_id: string | null;
   class_name: string | null;
   class_section: string | null;
+  school_id: string | null;
 }
 
 interface AttendanceStats {
@@ -45,6 +49,15 @@ interface RecentResult {
   grade: string | null;
 }
 
+interface UpcomingExam {
+  id: string;
+  subject: string;
+  exam_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  exam_name: string;
+}
+
 const StudentDashboard = () => {
   const { user } = useAuth();
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
@@ -52,6 +65,7 @@ const StudentDashboard = () => {
   const [feeStats, setFeeStats] = useState<FeeStats>({ totalDue: 0, totalPaid: 0, pending: 0 });
   const [recentNotices, setRecentNotices] = useState<RecentNotice[]>([]);
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
+  const [upcomingExams, setUpcomingExams] = useState<UpcomingExam[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,19 +83,24 @@ const StudentDashboard = () => {
           id,
           full_name,
           roll_number,
+          class_id,
+          school_id,
           classes:class_id (name, section)
         `)
         .or(`user_id.eq.${user?.id},parent_user_id.eq.${user?.id}`)
         .maybeSingle();
 
       if (studentData) {
-        setStudentInfo({
+        const info: StudentInfo = {
           id: studentData.id,
           full_name: studentData.full_name,
           roll_number: studentData.roll_number,
+          class_id: studentData.class_id,
+          school_id: studentData.school_id,
           class_name: (studentData.classes as any)?.name || null,
           class_section: (studentData.classes as any)?.section || null,
-        });
+        };
+        setStudentInfo(info);
 
         // Fetch attendance stats
         const { data: attendanceData } = await supabase
@@ -142,6 +161,38 @@ const StudentDashboard = () => {
             }))
           );
         }
+
+        // Fetch upcoming exams (schedules for student's class)
+        if (studentData.class_id) {
+          const today = new Date().toISOString().split('T')[0];
+          const { data: scheduleData } = await supabase
+            .from("exam_schedules")
+            .select(`
+              id,
+              subject,
+              exam_date,
+              start_time,
+              end_time,
+              exams:exam_id (name)
+            `)
+            .eq("class_id", studentData.class_id)
+            .gte("exam_date", today)
+            .order("exam_date", { ascending: true })
+            .limit(5);
+
+          if (scheduleData) {
+            setUpcomingExams(
+              scheduleData.map((s) => ({
+                id: s.id,
+                subject: s.subject,
+                exam_date: s.exam_date,
+                start_time: s.start_time,
+                end_time: s.end_time,
+                exam_name: (s.exams as any)?.name || "Exam",
+              }))
+            );
+          }
+        }
       }
 
       // Fetch recent notices
@@ -181,6 +232,9 @@ const StudentDashboard = () => {
       <Helmet><title>Student Dashboard - SkoolSetu</title></Helmet>
       <DashboardLayout role="student">
         <div className="space-y-6">
+          {/* Greeting Banner */}
+          {studentInfo?.school_id && <GreetingBanner schoolId={studentInfo.school_id} />}
+
           {/* Welcome Section */}
           <div>
             <h1 className="text-2xl font-bold">Welcome, {studentInfo?.full_name || "Student"}!</h1>
@@ -215,15 +269,55 @@ const StudentDashboard = () => {
               description={recentResults.length > 0 ? recentResults[0].exam_name : "No results yet"}
             />
             <StatsCard 
-              title="New Notices" 
-              value={String(recentNotices.length)} 
-              icon={Bell} 
+              title="Upcoming Exams" 
+              value={String(upcomingExams.length)} 
+              icon={Calendar} 
               variant="primary"
-              description="Unread announcements"
+              description={upcomingExams.length > 0 ? "Scheduled" : "None scheduled"}
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Upcoming Exams Timetable */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Upcoming Exams</CardTitle>
+                  <CardDescription>Your exam schedule</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {upcomingExams.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">No upcoming exams scheduled</p>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingExams.map((exam) => (
+                      <div key={exam.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-primary/10 rounded-lg">
+                            <BookOpen className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{exam.subject}</p>
+                            <p className="text-sm text-muted-foreground">{exam.exam_name}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{format(new Date(exam.exam_date), "dd MMM")}</p>
+                          {exam.start_time && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
+                              <Clock className="h-3 w-3" />
+                              {exam.start_time}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Attendance Summary */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -331,7 +425,7 @@ const StudentDashboard = () => {
                   <p className="text-muted-foreground text-center py-4">No results available yet</p>
                 ) : (
                   <div className="space-y-3">
-                    {recentResults.map((result, idx) => (
+                    {recentResults.slice(0, 3).map((result, idx) => (
                       <div key={idx} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
                         <div>
                           <p className="font-medium">{result.subject}</p>
@@ -349,7 +443,7 @@ const StudentDashboard = () => {
             </Card>
 
             {/* Recent Notices */}
-            <Card>
+            <Card className="lg:col-span-2">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">Recent Notices</CardTitle>
@@ -365,7 +459,7 @@ const StudentDashboard = () => {
                 {recentNotices.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">No notices available</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {recentNotices.map((notice) => (
                       <div key={notice.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
                         <div className="flex items-center gap-3">
