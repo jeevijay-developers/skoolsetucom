@@ -73,6 +73,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Students", url: "/school-admin/students", icon: Users },
     { title: "Teachers", url: "/school-admin/teachers", icon: GraduationCap },
     { title: "Classes", url: "/school-admin/classes", icon: School },
+    { title: "Subjects", url: "/school-admin/subjects", icon: BookOpen },
     { title: "Attendance", url: "/school-admin/attendance", icon: Calendar },
     { title: "Fees", url: "/school-admin/fees", icon: DollarSign },
     { title: "Collect Fee", url: "/school-admin/collect-fee", icon: Receipt },

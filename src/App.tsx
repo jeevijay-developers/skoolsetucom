@@ -24,6 +24,7 @@ import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
 import Students from "./pages/school-admin/Students";
 import Teachers from "./pages/school-admin/Teachers";
 import Classes from "./pages/school-admin/Classes";
+import Subjects from "./pages/school-admin/Subjects";
 import SchoolAttendance from "./pages/school-admin/Attendance";
 import Fees from "./pages/school-admin/Fees";
 import CollectFee from "./pages/school-admin/CollectFee";
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/school-admin/students" element={<ProtectedRoute allowedRoles={["school_admin"]}><Students /></ProtectedRoute>} />
               <Route path="/school-admin/teachers" element={<ProtectedRoute allowedRoles={["school_admin"]}><Teachers /></ProtectedRoute>} />
               <Route path="/school-admin/classes" element={<ProtectedRoute allowedRoles={["school_admin"]}><Classes /></ProtectedRoute>} />
+              <Route path="/school-admin/subjects" element={<ProtectedRoute allowedRoles={["school_admin"]}><Subjects /></ProtectedRoute>} />
               <Route path="/school-admin/attendance" element={<ProtectedRoute allowedRoles={["school_admin"]}><SchoolAttendance /></ProtectedRoute>} />
               <Route path="/school-admin/fees" element={<ProtectedRoute allowedRoles={["school_admin"]}><Fees /></ProtectedRoute>} />
               <Route path="/school-admin/collect-fee" element={<ProtectedRoute allowedRoles={["school_admin"]}><CollectFee /></ProtectedRoute>} />
