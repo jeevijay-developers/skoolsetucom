@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 const PricingSection = () => {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annually">("monthly");
   const [students, setStudents] = useState(50);
-  const [isAnimating, setIsAnimating] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const MIN_STUDENTS = 50;
   const MAX_STUDENTS = 2000;
