@@ -566,6 +566,44 @@ export type Database = {
           },
         ]
       }
+      invoice_settings: {
+        Row: {
+          authorized_name: string | null
+          created_at: string
+          default_template: string | null
+          id: string
+          school_id: string
+          signature_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          authorized_name?: string | null
+          created_at?: string
+          default_template?: string | null
+          id?: string
+          school_id: string
+          signature_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          authorized_name?: string | null
+          created_at?: string
+          default_template?: string | null
+          id?: string
+          school_id?: string
+          signature_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_settings_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: true
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notices: {
         Row: {
           content: string
@@ -823,12 +861,15 @@ export type Database = {
       student_fees: {
         Row: {
           amount: number
+          collected_by: string | null
           created_at: string
           due_date: string
           fee_structure_id: string | null
           id: string
           paid_amount: number | null
           paid_at: string | null
+          payment_mode: string | null
+          payment_screenshot_url: string | null
           receipt_number: string | null
           school_id: string
           status: string | null
@@ -836,12 +877,15 @@ export type Database = {
         }
         Insert: {
           amount: number
+          collected_by?: string | null
           created_at?: string
           due_date: string
           fee_structure_id?: string | null
           id?: string
           paid_amount?: number | null
           paid_at?: string | null
+          payment_mode?: string | null
+          payment_screenshot_url?: string | null
           receipt_number?: string | null
           school_id: string
           status?: string | null
@@ -849,12 +893,15 @@ export type Database = {
         }
         Update: {
           amount?: number
+          collected_by?: string | null
           created_at?: string
           due_date?: string
           fee_structure_id?: string | null
           id?: string
           paid_amount?: number | null
           paid_at?: string | null
+          payment_mode?: string | null
+          payment_screenshot_url?: string | null
           receipt_number?: string | null
           school_id?: string
           status?: string | null
