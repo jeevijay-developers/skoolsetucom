@@ -87,6 +87,9 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Attendance", url: "/teacher/attendance", icon: Calendar },
     { title: "Exam Marks", url: "/teacher/exam-marks", icon: ClipboardList },
     { title: "Students", url: "/teacher/students", icon: Users },
+    { title: "Fee Status", url: "/teacher/fee-status", icon: DollarSign },
+    { title: "Report Cards", url: "/teacher/report-cards", icon: FileText },
+    { title: "My Payroll", url: "/teacher/payroll", icon: CreditCard },
   ],
   student: [
     { title: "Dashboard", url: "/student", icon: Home },

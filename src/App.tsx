@@ -55,6 +55,9 @@ import SuperAdminCoupons from "./pages/super-admin/Coupons";
 import TeacherAttendance from "./pages/teacher/Attendance";
 import TeacherExamMarks from "./pages/teacher/ExamMarks";
 import TeacherStudents from "./pages/teacher/Students";
+import TeacherPayroll from "./pages/teacher/Payroll";
+import TeacherFeeStatus from "./pages/teacher/FeeStatus";
+import TeacherReportCards from "./pages/teacher/ReportCards";
 
 const queryClient = new QueryClient();
 
@@ -114,6 +117,9 @@ const App = () => (
               <Route path="/teacher/attendance" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherAttendance /></ProtectedRoute>} />
               <Route path="/teacher/exam-marks" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherExamMarks /></ProtectedRoute>} />
               <Route path="/teacher/students" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherStudents /></ProtectedRoute>} />
+              <Route path="/teacher/payroll" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherPayroll /></ProtectedRoute>} />
+              <Route path="/teacher/fee-status" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherFeeStatus /></ProtectedRoute>} />
+              <Route path="/teacher/report-cards" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherReportCards /></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
