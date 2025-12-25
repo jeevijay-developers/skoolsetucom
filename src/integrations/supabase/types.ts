@@ -763,6 +763,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_school_registration: {
+        Args: {
+          _address?: string
+          _board: string
+          _city: string
+          _pincode?: string
+          _principal_name?: string
+          _school_email: string
+          _school_name: string
+          _school_phone: string
+          _state: string
+          _student_count?: number
+        }
+        Returns: Json
+      }
       get_user_school_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

@@ -29,6 +29,7 @@ interface AuthContextType {
   schoolId: string | null;
   subscription: Subscription | null;
   loading: boolean;
+  roleLoaded: boolean; // true when role fetch is complete (even if no role found)
   isSubscriptionActive: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null; data: any }>;
@@ -55,8 +56,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [roleLoaded, setRoleLoaded] = useState(false);
 
   const fetchUserData = async (userId: string) => {
+    setRoleLoaded(false);
     try {
       // Fetch user role
       const { data: roleData, error: roleError } = await supabase
@@ -67,6 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (roleError) {
         console.error("Error fetching role:", roleError);
+        setRoleLoaded(true);
         return;
       }
 
@@ -86,9 +90,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setSubscription(subData);
           }
         }
+      } else {
+        // User exists but has no role - clear any stale data
+        setUserRole(null);
+        setSchoolId(null);
+        setSubscription(null);
       }
+      setRoleLoaded(true);
     } catch (error) {
       console.error("Error fetching user data:", error);
+      setRoleLoaded(true);
     }
   };
 
@@ -114,12 +125,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUserRole(null);
           setSchoolId(null);
           setSubscription(null);
+          setRoleLoaded(false);
         }
 
         if (event === "SIGNED_OUT") {
           setUserRole(null);
           setSchoolId(null);
           setSubscription(null);
+          setRoleLoaded(false);
         }
 
         setLoading(false);
@@ -132,6 +145,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserData(session.user.id);
+      } else {
+        setRoleLoaded(true);
       }
       setLoading(false);
     });
@@ -189,6 +204,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserRole(null);
     setSchoolId(null);
     setSubscription(null);
+    setRoleLoaded(false);
   };
 
   const resetPassword = async (email: string) => {
@@ -212,6 +228,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         schoolId,
         subscription,
         loading,
+        roleLoaded,
         isSubscriptionActive: isSubscriptionActive(),
         signIn,
         signUp,
