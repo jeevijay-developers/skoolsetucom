@@ -37,6 +37,7 @@ import Employees from "./pages/school-admin/Employees";
 import Payroll from "./pages/school-admin/Payroll";
 import Greetings from "./pages/school-admin/Greetings";
 import StaffAccess from "./pages/school-admin/StaffAccess";
+import SchoolSubscription from "./pages/school-admin/Subscription";
 
 // School Staff pages
 import StaffDashboard from "./pages/school-staff/Dashboard";
@@ -107,6 +108,7 @@ const App = () => (
               <Route path="/school-admin/payroll" element={<ProtectedRoute allowedRoles={["school_admin"]}><Payroll /></ProtectedRoute>} />
               <Route path="/school-admin/greetings" element={<ProtectedRoute allowedRoles={["school_admin"]}><Greetings /></ProtectedRoute>} />
               <Route path="/school-admin/staff-access" element={<ProtectedRoute allowedRoles={["school_admin"]}><StaffAccess /></ProtectedRoute>} />
+              <Route path="/school-admin/subscription" element={<ProtectedRoute allowedRoles={["school_admin"]}><SchoolSubscription /></ProtectedRoute>} />
 
               {/* School Staff Routes */}
               <Route path="/school-staff" element={<ProtectedRoute allowedRoles={["school_staff"]}><StaffDashboard /></ProtectedRoute>} />

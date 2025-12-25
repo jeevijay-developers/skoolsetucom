@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, CreditCard, Edit } from "lucide-react";
-import { format } from "date-fns";
+import { Search, CreditCard, Edit, CheckCircle, Users, IndianRupee } from "lucide-react";
+import { format, addDays, addMonths, addYears } from "date-fns";
 
 interface Subscription {
   id: string;
@@ -26,6 +27,8 @@ interface Subscription {
   subscription_end_date: string | null;
   coupon_code: string | null;
   discount_amount: number | null;
+  student_count: number | null;
+  billing_cycle: string | null;
   schools: { name: string; email: string | null } | null;
 }
 
@@ -36,7 +39,13 @@ const Subscriptions = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedSub, setSelectedSub] = useState<Subscription | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ plan: "", status: "", endDate: "" });
+  const [editForm, setEditForm] = useState({ 
+    plan: "", 
+    status: "", 
+    endDate: "",
+    studentCount: 50,
+    billingCycle: "monthly"
+  });
 
   useEffect(() => {
     fetchSubscriptions();
@@ -66,8 +75,66 @@ const Subscriptions = () => {
       plan: sub.plan,
       status: sub.status,
       endDate: sub.subscription_end_date?.split("T")[0] || "",
+      studentCount: sub.student_count || 50,
+      billingCycle: sub.billing_cycle || "monthly"
     });
     setIsEditOpen(true);
+  };
+
+  // Calculate pricing based on plan, student count, and billing cycle
+  const calculatePricing = () => {
+    const students = editForm.studentCount;
+    const isAnnual = editForm.billingCycle === "annual";
+    const isPro = editForm.plan === "pro";
+
+    const dailyRate = isPro 
+      ? (isAnnual ? 2 : 3) 
+      : (isAnnual ? 1 : 2);
+    
+    const dailyTotal = students * dailyRate;
+    const monthlyTotal = dailyTotal * 30;
+    const yearlyTotal = dailyTotal * 365;
+
+    return { dailyRate, dailyTotal, monthlyTotal, yearlyTotal };
+  };
+
+  const pricing = calculatePricing();
+
+  const handleActivate = async () => {
+    if (!selectedSub) return;
+
+    try {
+      const now = new Date();
+      let endDate: Date;
+
+      if (editForm.billingCycle === "annual") {
+        endDate = addYears(now, 1);
+      } else {
+        endDate = addMonths(now, 1);
+      }
+
+      const updateData = {
+        plan: editForm.plan as "basic" | "pro",
+        status: "active" as const,
+        subscription_start_date: now.toISOString(),
+        subscription_end_date: endDate.toISOString(),
+        student_count: editForm.studentCount,
+        billing_cycle: editForm.billingCycle,
+        amount: editForm.billingCycle === "annual" ? pricing.yearlyTotal : pricing.monthlyTotal
+      };
+
+      const { error } = await supabase
+        .from("subscriptions")
+        .update(updateData)
+        .eq("id", selectedSub.id);
+
+      if (error) throw error;
+      toast.success("Subscription activated successfully!");
+      setIsEditOpen(false);
+      fetchSubscriptions();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   const handleUpdate = async () => {
@@ -77,10 +144,12 @@ const Subscriptions = () => {
       const updateData: any = {
         plan: editForm.plan,
         status: editForm.status,
+        student_count: editForm.studentCount,
+        billing_cycle: editForm.billingCycle,
       };
 
       if (editForm.status === "active" && editForm.endDate) {
-        updateData.subscription_start_date = new Date().toISOString();
+        updateData.subscription_start_date = selectedSub.subscription_start_date || new Date().toISOString();
         updateData.subscription_end_date = new Date(editForm.endDate).toISOString();
       }
 
@@ -217,6 +286,7 @@ const Subscriptions = () => {
                         <TableHead>School</TableHead>
                         <TableHead>Plan</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Students</TableHead>
                         <TableHead>Trial End</TableHead>
                         <TableHead>Sub End</TableHead>
                         <TableHead>Coupon</TableHead>
@@ -236,6 +306,12 @@ const Subscriptions = () => {
                             <Badge variant="outline" className="capitalize">{sub.plan}</Badge>
                           </TableCell>
                           <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              {sub.student_count || 50}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             {format(new Date(sub.trial_end_date), "MMM dd, yyyy")}
                           </TableCell>
@@ -269,26 +345,78 @@ const Subscriptions = () => {
 
           {/* Edit Dialog */}
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Edit Subscription</DialogTitle>
+                <DialogTitle>Manage Subscription</DialogTitle>
                 <DialogDescription>
-                  Update subscription for {selectedSub?.schools?.name}
+                  {selectedSub?.schools?.name}
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Plan</Label>
-                  <Select value={editForm.plan} onValueChange={(v) => setEditForm({ ...editForm, plan: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="basic">Basic (₹25,000/year)</SelectItem>
-                      <SelectItem value="pro">Pro (₹38,000/year)</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Plan</Label>
+                    <Select value={editForm.plan} onValueChange={(v) => setEditForm({ ...editForm, plan: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="basic">Basic</SelectItem>
+                        <SelectItem value="pro">Pro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Billing Cycle</Label>
+                    <Select value={editForm.billingCycle} onValueChange={(v) => setEditForm({ ...editForm, billingCycle: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="annual">Annual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Student Limit</Label>
+                    <span className="text-lg font-bold">{editForm.studentCount} students</span>
+                  </div>
+                  <Slider
+                    value={[editForm.studentCount]}
+                    onValueChange={(v) => setEditForm({ ...editForm, studentCount: v[0] })}
+                    min={50}
+                    max={2000}
+                    step={10}
+                    className="py-4"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Min: 50</span>
+                    <span>Max: 2000</span>
+                  </div>
+                </div>
+
+                {/* Pricing Preview */}
+                <div className="p-4 bg-muted rounded-lg space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <IndianRupee className="h-4 w-4" />
+                    <span className="font-medium">Pricing Preview</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <span className="text-muted-foreground">Rate per student:</span>
+                    <span className="font-medium">₹{pricing.dailyRate}/day</span>
+                    <span className="text-muted-foreground">Daily total:</span>
+                    <span className="font-medium">₹{pricing.dailyTotal}</span>
+                    <span className="text-muted-foreground">Monthly total:</span>
+                    <span className="font-medium">₹{pricing.monthlyTotal.toLocaleString()}</span>
+                    <span className="text-muted-foreground">Yearly total:</span>
+                    <span className="font-bold text-primary">₹{pricing.yearlyTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
@@ -303,6 +431,7 @@ const Subscriptions = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
                 {editForm.status === "active" && (
                   <div className="space-y-2">
                     <Label>Subscription End Date</Label>
@@ -314,8 +443,14 @@ const Subscriptions = () => {
                   </div>
                 )}
               </div>
-              <DialogFooter>
+              <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                {(selectedSub?.status === "trial" || selectedSub?.status === "expired") && (
+                  <Button onClick={handleActivate} className="bg-secondary hover:bg-secondary/90">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Activate Subscription
+                  </Button>
+                )}
                 <Button onClick={handleUpdate}>Update</Button>
               </DialogFooter>
             </DialogContent>
