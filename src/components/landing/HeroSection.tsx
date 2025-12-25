@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Play, Users, School, CheckCircle } from "lucide-react";
+import { Play, Users, School, CheckCircle, PenLine } from "lucide-react";
 import dashboardMockup from "@/assets/dashboard-mockup.png";
 
 const HeroSection = () => {
@@ -10,6 +10,8 @@ const HeroSection = () => {
   ];
 
   const quickFeatures = ["Attendance", "Fees", "Exams", "Payroll", "Parent Portal"];
+
+  const marketingTagline = "Pen ki refill se bhi sasta — ₹1/day per student!";
 
   return (
     <section className="relative min-h-[90vh] pt-24 overflow-hidden">
@@ -22,9 +24,15 @@ const HeroSection = () => {
         <div className="grid lg:grid-cols-2 gap-10 items-center">
           {/* Left Content - Shorter */}
           <div className="space-y-6 animate-slide-in-left">
-            <div className="inline-flex items-center gap-2 bg-secondary/10 text-secondary px-4 py-2 rounded-full text-sm font-medium">
-              <CheckCircle size={16} />
-              1 Day Free Trial
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-2 bg-secondary/10 text-secondary px-4 py-2 rounded-full text-sm font-medium">
+                <CheckCircle size={16} />
+                1 Day Free Trial
+              </div>
+              <div className="inline-flex items-center gap-2 bg-accent/20 text-accent-foreground px-4 py-2 rounded-full text-sm font-medium">
+                <PenLine size={16} />
+                ₹1/day per student
+              </div>
             </div>
 
             <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
