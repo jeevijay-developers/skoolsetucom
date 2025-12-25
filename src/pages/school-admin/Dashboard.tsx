@@ -438,7 +438,7 @@ const SchoolAdminDashboard = () => {
           </div>
 
           {/* Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Subscription Status */}
             <Card className="shadow-card">
               <CardHeader>
@@ -519,50 +519,6 @@ const SchoolAdminDashboard = () => {
                   All Reports
                   <ArrowRight className="h-4 w-4" />
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Recent Notices */}
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
-                  Recent Notices
-                </CardTitle>
-                <CardDescription>Latest announcements</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {stats.recentNotices.length > 0 ? (
-                  <div className="space-y-3">
-                    {stats.recentNotices.map((notice) => (
-                      <div key={notice.id} className="border-l-2 border-primary pl-3 py-1">
-                        <p className="font-medium text-sm line-clamp-1">{notice.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(notice.published_at), "MMM dd, yyyy")}
-                        </p>
-                      </div>
-                    ))}
-                    <Button
-                      variant="ghost"
-                      className="w-full text-primary"
-                      onClick={() => navigate("/school-admin/notices")}
-                    >
-                      View All Notices
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No notices yet</p>
-                    <Button
-                      variant="link"
-                      className="mt-2"
-                      onClick={() => navigate("/school-admin/notices")}
-                    >
-                      Create your first notice
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
