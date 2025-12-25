@@ -9,6 +9,7 @@ const corsHeaders = {
 interface CreateParentLoginRequest {
   student_id: string;
   temp_password: string;
+  update_password?: boolean;
 }
 
 serve(async (req: Request) => {
@@ -39,12 +40,57 @@ serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { student_id, temp_password }: CreateParentLoginRequest = await req.json();
+    const { student_id, temp_password, update_password }: CreateParentLoginRequest = await req.json();
 
     if (!student_id || !temp_password) {
       throw new Error("student_id and temp_password are required");
     }
 
+    // If updating password for existing user
+    if (update_password) {
+      console.log("Updating password for student:", student_id);
+
+      // Get student with parent_user_id
+      const { data: student, error: studentError } = await supabaseAdmin
+        .from("students")
+        .select("parent_user_id, parent_email")
+        .eq("id", student_id)
+        .single();
+
+      if (studentError || !student) {
+        throw new Error("Student not found");
+      }
+
+      if (!student.parent_user_id) {
+        throw new Error("No parent login exists for this student");
+      }
+
+      // Update the user's password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        student.parent_user_id,
+        { password: temp_password }
+      );
+
+      if (updateError) {
+        console.error("Password update error:", updateError);
+        throw new Error("Failed to update password: " + updateError.message);
+      }
+
+      console.log("Password updated successfully");
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Password updated successfully",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    }
+
+    // Creating new parent login
     console.log("Creating parent login for student:", student_id);
 
     // Get student details using the RPC function
@@ -125,7 +171,7 @@ serve(async (req: Request) => {
       }
     );
   } catch (error: any) {
-    console.error("Error creating parent login:", error);
+    console.error("Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
