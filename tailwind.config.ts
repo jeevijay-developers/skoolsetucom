@@ -120,6 +120,38 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-5px)" },
         },
+        "float": {
+          "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
+          "50%": { transform: "translateY(-15px) rotate(2deg)" },
+        },
+        "float-slow": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "slide-in-right": {
+          from: { opacity: "0", transform: "translateX(50px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        "slide-in-left": {
+          from: { opacity: "0", transform: "translateX(-50px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 20px 0px hsl(var(--secondary) / 0.3)" },
+          "50%": { boxShadow: "0 0 40px 10px hsl(var(--secondary) / 0.5)" },
+        },
+        "draw-line": {
+          from: { width: "0%" },
+          to: { width: "100%" },
+        },
+        "spin-slow": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+        "wiggle": {
+          "0%, 100%": { transform: "rotate(-3deg)" },
+          "50%": { transform: "rotate(3deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -129,6 +161,14 @@ export default {
         "slide-down": "slide-down 0.6s ease-out forwards",
         "scale-in": "scale-in 0.4s ease-out forwards",
         "bounce-gentle": "bounce-gentle 2s ease-in-out infinite",
+        "float": "float 4s ease-in-out infinite",
+        "float-slow": "float-slow 6s ease-in-out infinite",
+        "slide-in-right": "slide-in-right 0.6s ease-out forwards",
+        "slide-in-left": "slide-in-left 0.6s ease-out forwards",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "draw-line": "draw-line 1s ease-out forwards",
+        "spin-slow": "spin-slow 10s linear infinite",
+        "wiggle": "wiggle 1s ease-in-out infinite",
       },
     },
   },
