@@ -115,7 +115,7 @@ const Classes = () => {
     
     // Get class teacher
     const cls = classes.find(c => c.id === classId);
-    setClassTeacher(cls?.class_teacher_id || "");
+    setClassTeacher(cls?.class_teacher_id || "_none");
     
     setLoadingManage(false);
   };
@@ -164,10 +164,11 @@ const Classes = () => {
 
   const handleSetClassTeacher = async () => {
     if (!selectedClass) return;
+    const teacherId = classTeacher === "_none" ? null : classTeacher;
     try {
       await supabase
         .from("classes")
-        .update({ class_teacher_id: classTeacher || null })
+        .update({ class_teacher_id: teacherId })
         .eq("id", selectedClass.id);
       
       // Update teacher_classes table
@@ -177,13 +178,13 @@ const Classes = () => {
         .eq("class_id", selectedClass.id)
         .eq("is_class_teacher", true);
       
-      if (classTeacher) {
+      if (teacherId) {
         // Check if entry exists
         const { data: existing } = await supabase
           .from("teacher_classes")
           .select("id")
           .eq("class_id", selectedClass.id)
-          .eq("teacher_id", classTeacher)
+          .eq("teacher_id", teacherId)
           .single();
         
         if (existing) {
@@ -194,7 +195,7 @@ const Classes = () => {
         } else {
           await supabase.from("teacher_classes").insert({
             class_id: selectedClass.id,
-            teacher_id: classTeacher,
+            teacher_id: teacherId,
             school_id: schoolId,
             is_class_teacher: true,
           });
@@ -221,10 +222,11 @@ const Classes = () => {
     }
     
     try {
+      const teacherIdToUse = selectedSubjectTeacher === "_none" ? null : (selectedSubjectTeacher || null);
       await supabase.from("class_subjects").insert({
         class_id: selectedClass.id,
         subject_id: selectedSubjectToAdd,
-        teacher_id: selectedSubjectTeacher || null,
+        teacher_id: teacherIdToUse,
         school_id: schoolId,
       });
       toast.success("Subject added to class");
@@ -397,7 +399,7 @@ const Classes = () => {
                             <SelectValue placeholder="Select a teacher" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No Class Teacher</SelectItem>
+                            <SelectItem value="_none">No Class Teacher</SelectItem>
                             {teachers.map((t) => (
                               <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
                             ))}
@@ -433,7 +435,7 @@ const Classes = () => {
                             <SelectValue placeholder="Subject Teacher (Optional)" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No Teacher</SelectItem>
+                            <SelectItem value="_none">No Teacher</SelectItem>
                             {teachers.map((t) => (
                               <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
                             ))}
@@ -473,14 +475,14 @@ const Classes = () => {
                               </TableCell>
                               <TableCell>
                                 <Select
-                                  value={cs.teacher_id || ""}
-                                  onValueChange={(val) => handleUpdateSubjectTeacher(cs.id, val)}
+                                  value={cs.teacher_id || "_none"}
+                                  onValueChange={(val) => handleUpdateSubjectTeacher(cs.id, val === "_none" ? "" : val)}
                                 >
                                   <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Assign Teacher" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">No Teacher</SelectItem>
+                                    <SelectItem value="_none">No Teacher</SelectItem>
                                     {teachers.map((t) => (
                                       <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
                                     ))}
