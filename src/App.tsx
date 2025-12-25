@@ -30,6 +30,9 @@ import Exams from "./pages/school-admin/Exams";
 import Notices from "./pages/school-admin/Notices";
 import Reports from "./pages/school-admin/Reports";
 import SchoolProfile from "./pages/school-admin/Profile";
+import Employees from "./pages/school-admin/Employees";
+import Payroll from "./pages/school-admin/Payroll";
+import Greetings from "./pages/school-admin/Greetings";
 
 // Teacher pages
 import TeacherDashboard from "./pages/teacher/Dashboard";
@@ -86,6 +89,9 @@ const App = () => (
               <Route path="/school-admin/notices" element={<ProtectedRoute allowedRoles={["school_admin"]}><Notices /></ProtectedRoute>} />
               <Route path="/school-admin/reports" element={<ProtectedRoute allowedRoles={["school_admin"]}><Reports /></ProtectedRoute>} />
               <Route path="/school-admin/profile" element={<ProtectedRoute allowedRoles={["school_admin"]}><SchoolProfile /></ProtectedRoute>} />
+              <Route path="/school-admin/employees" element={<ProtectedRoute allowedRoles={["school_admin"]}><Employees /></ProtectedRoute>} />
+              <Route path="/school-admin/payroll" element={<ProtectedRoute allowedRoles={["school_admin"]}><Payroll /></ProtectedRoute>} />
+              <Route path="/school-admin/greetings" element={<ProtectedRoute allowedRoles={["school_admin"]}><Greetings /></ProtectedRoute>} />
 
               {/* Teacher Routes */}
               <Route path="/teacher" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherDashboard /></ProtectedRoute>} />
