@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye } from "lucide-react";
 
 interface Class {
   id: string;
@@ -42,6 +42,15 @@ interface ClassSubject {
   teachers?: Teacher | null;
 }
 
+interface Student {
+  id: string;
+  full_name: string;
+  roll_number: string | null;
+  admission_number: string | null;
+  parent_name: string | null;
+  parent_phone: string | null;
+}
+
 const Classes = () => {
   const { schoolId } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
@@ -62,12 +71,22 @@ const Classes = () => {
   // Add subject to class
   const [selectedSubjectToAdd, setSelectedSubjectToAdd] = useState("");
   const [selectedSubjectTeacher, setSelectedSubjectTeacher] = useState("");
+  
+  // Student counts
+  const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
+  
+  // View students dialog
+  const [studentsDialogOpen, setStudentsDialogOpen] = useState(false);
+  const [viewingClass, setViewingClass] = useState<Class | null>(null);
+  const [classStudents, setClassStudents] = useState<Student[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   useEffect(() => {
     if (schoolId) {
       fetchClasses();
       fetchTeachers();
       fetchSubjects();
+      fetchStudentCounts();
     }
   }, [schoolId]);
 
@@ -99,6 +118,43 @@ const Classes = () => {
       .eq("is_active", true)
       .order("name");
     setSubjects(data || []);
+  };
+
+  const fetchStudentCounts = async () => {
+    const { data } = await supabase
+      .from("students")
+      .select("class_id")
+      .eq("school_id", schoolId)
+      .eq("is_active", true);
+    
+    if (data) {
+      const counts: Record<string, number> = {};
+      data.forEach(s => {
+        if (s.class_id) {
+          counts[s.class_id] = (counts[s.class_id] || 0) + 1;
+        }
+      });
+      setStudentCounts(counts);
+    }
+  };
+
+  const fetchClassStudents = async (classId: string) => {
+    setLoadingStudents(true);
+    const { data } = await supabase
+      .from("students")
+      .select("id, full_name, roll_number, admission_number, parent_name, parent_phone")
+      .eq("school_id", schoolId)
+      .eq("class_id", classId)
+      .eq("is_active", true)
+      .order("roll_number");
+    setClassStudents(data || []);
+    setLoadingStudents(false);
+  };
+
+  const openStudentsDialog = (cls: Class) => {
+    setViewingClass(cls);
+    setStudentsDialogOpen(true);
+    fetchClassStudents(cls.id);
   };
 
   const fetchClassDetails = async (classId: string) => {
@@ -321,6 +377,7 @@ const Classes = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {classes.map((cls) => {
                 const classTeacherName = getClassTeacherName(cls.class_teacher_id);
+                const studentCount = studentCounts[cls.id] || 0;
                 return (
                   <Card key={cls.id} className="shadow-card hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
@@ -336,18 +393,29 @@ const Classes = () => {
                             <p className="text-sm text-muted-foreground">{cls.academic_year}</p>
                           </div>
                         </div>
+                        <Button variant="outline" size="sm" onClick={() => openStudentsDialog(cls)}>
+                          <Eye className="h-3.5 w-3.5 mr-1" />View
+                        </Button>
                       </div>
 
-                      {/* Class Teacher */}
-                      <div className="flex items-center gap-2 mb-3 p-2 rounded-md bg-muted/50">
-                        <UserCheck className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">
-                          {classTeacherName ? (
-                            <span className="font-medium">{classTeacherName}</span>
-                          ) : (
-                            <span className="text-muted-foreground">No class teacher assigned</span>
-                          )}
-                        </span>
+                      {/* Student Count & Class Teacher */}
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                          <Users className="h-4 w-4 text-primary" />
+                          <span className="text-sm">
+                            <span className="font-semibold">{studentCount}</span> Students
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                          <UserCheck className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm truncate">
+                            {classTeacherName ? (
+                              <span className="font-medium">{classTeacherName}</span>
+                            ) : (
+                              <span className="text-muted-foreground">No CT</span>
+                            )}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2 pt-2 border-t">
@@ -508,6 +576,58 @@ const Classes = () => {
                   </TabsContent>
                 </Tabs>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* View Students Dialog */}
+          <Dialog open={studentsDialogOpen} onOpenChange={setStudentsDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Students in {viewingClass?.name}{viewingClass?.section ? ` - ${viewingClass.section}` : ""}
+                </DialogTitle>
+              </DialogHeader>
+
+              {loadingStudents ? (
+                <div className="py-8 text-center">Loading...</div>
+              ) : classStudents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No Students</h3>
+                  <p className="text-muted-foreground">No students are enrolled in this class yet</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Roll No</TableHead>
+                      <TableHead>Student Name</TableHead>
+                      <TableHead>Admission No</TableHead>
+                      <TableHead>Parent</TableHead>
+                      <TableHead>Phone</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {classStudents.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell>{student.roll_number || "-"}</TableCell>
+                        <TableCell className="font-medium">{student.full_name}</TableCell>
+                        <TableCell>{student.admission_number || "-"}</TableCell>
+                        <TableCell>{student.parent_name || "-"}</TableCell>
+                        <TableCell>{student.parent_phone || "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+
+              <div className="flex justify-between items-center pt-4 border-t">
+                <p className="text-sm text-muted-foreground">
+                  Total: <span className="font-semibold">{classStudents.length}</span> students
+                </p>
+                <Button variant="outline" onClick={() => setStudentsDialogOpen(false)}>Close</Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
