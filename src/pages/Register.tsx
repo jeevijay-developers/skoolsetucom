@@ -21,6 +21,19 @@ const INDIAN_STATES = [
 
 const BOARDS = ["CBSE", "ICSE", "State Board", "IB", "IGCSE", "Other"];
 
+const DESIGNATIONS = ["School Owner", "Principal", "Manager", "Director", "Decision Maker"];
+
+// Validation helpers
+const isValidEmail = (email: string) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const isValidPhone = (phone: string) => {
+  const phoneRegex = /^[6-9]\d{9}$/;
+  return phoneRegex.test(phone.replace(/\s/g, ''));
+};
+
 const Register = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -40,7 +53,8 @@ const Register = () => {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [pincode, setPincode] = useState("");
-  const [principalName, setPrincipalName] = useState("");
+  const [yourName, setYourName] = useState("");
+  const [designation, setDesignation] = useState("");
   const [board, setBoard] = useState("");
   const [studentCount, setStudentCount] = useState(selectedStudents.toString());
   
@@ -63,12 +77,20 @@ const Register = () => {
       toast.error("Please enter school name");
       return false;
     }
-    if (!schoolEmail.trim() || !schoolEmail.includes("@")) {
-      toast.error("Please enter a valid school email");
+    if (!schoolEmail.trim()) {
+      toast.error("Please enter school email");
       return false;
     }
-    if (!schoolPhone.trim() || schoolPhone.length < 10) {
-      toast.error("Please enter a valid phone number");
+    if (!isValidEmail(schoolEmail)) {
+      toast.error("Invalid email format. Please enter a valid email address (e.g., info@school.edu)");
+      return false;
+    }
+    if (!schoolPhone.trim()) {
+      toast.error("Please enter phone number");
+      return false;
+    }
+    if (!isValidPhone(schoolPhone)) {
+      toast.error("Invalid mobile number. Please enter a valid 10-digit Indian mobile number starting with 6-9");
       return false;
     }
     if (!city.trim()) {
@@ -83,6 +105,14 @@ const Register = () => {
       toast.error("Please select education board");
       return false;
     }
+    if (!yourName.trim()) {
+      toast.error("Please enter your name");
+      return false;
+    }
+    if (!designation) {
+      toast.error("Please select your designation");
+      return false;
+    }
     return true;
   };
 
@@ -91,8 +121,16 @@ const Register = () => {
       toast.error("Please enter admin name");
       return false;
     }
-    if (!adminEmail.trim() || !adminEmail.includes("@")) {
-      toast.error("Please enter a valid admin email");
+    if (!adminEmail.trim()) {
+      toast.error("Please enter admin email");
+      return false;
+    }
+    if (!isValidEmail(adminEmail)) {
+      toast.error("Invalid email format. Please enter a valid email address");
+      return false;
+    }
+    if (adminPhone && !isValidPhone(adminPhone)) {
+      toast.error("Invalid mobile number. Please enter a valid 10-digit Indian mobile number starting with 6-9");
       return false;
     }
     if (password.length < 6) {
@@ -150,7 +188,7 @@ const Register = () => {
         _board: board,
         _address: address || null,
         _pincode: pincode || null,
-        _principal_name: principalName || null,
+        _principal_name: yourName ? `${yourName} (${designation})` : null,
         _student_count: studentCount ? parseInt(studentCount) : selectedStudents
       });
 
@@ -479,15 +517,30 @@ const Register = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="principalName" className="font-medium">Principal Name</Label>
-                      <Input
-                        id="principalName"
-                        placeholder="Dr. Sharma"
-                        value={principalName}
-                        onChange={(e) => setPrincipalName(e.target.value)}
-                        className="h-12"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="yourName" className="font-medium">Your Name *</Label>
+                        <Input
+                          id="yourName"
+                          placeholder="Your full name"
+                          value={yourName}
+                          onChange={(e) => setYourName(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="designation" className="font-medium">Designation *</Label>
+                        <Select value={designation} onValueChange={setDesignation}>
+                          <SelectTrigger className="h-12">
+                            <SelectValue placeholder="Select designation" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DESIGNATIONS.map((d) => (
+                              <SelectItem key={d} value={d}>{d}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     <Button 
