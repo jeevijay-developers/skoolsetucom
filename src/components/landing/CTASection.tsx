@@ -7,7 +7,7 @@ const CTASection = () => {
     "1 Day Free Trial",
     "No Credit Card Required",
     "Full Access to All Features",
-    "Cancel Anytime",
+    "WhatsApp Parent Notifications",
   ];
 
   return (
