@@ -5,8 +5,8 @@ import { Check, X, Star, Crown, IndianRupee, Users, Sparkles } from "lucide-reac
 import { Slider } from "@/components/ui/slider";
 
 const PricingSection = () => {
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annually">("annually");
-  const [students, setStudents] = useState(50);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annually">("monthly");
+  const [students, setStudents] = useState(60);
   const [isAnimating, setIsAnimating] = useState(true);
 
   const MIN_STUDENTS = 50;
