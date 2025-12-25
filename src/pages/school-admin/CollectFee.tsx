@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, Receipt, Upload, IndianRupee, CreditCard, Wallet, FileImage, Printer } from "lucide-react";
+import { Check, ChevronsUpDown, Receipt, Upload, IndianRupee, CreditCard, Wallet, FileImage, Printer, Percent, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { generateReceiptHTML, ReceiptTemplate } from "@/utils/receiptTemplates";
@@ -37,6 +37,7 @@ interface StudentFee {
   due_date: string;
   status: string;
   fee_structure_id: string | null;
+  discount_amount: number | null;
   fee_structures?: { name: string } | null;
 }
 
@@ -54,6 +55,13 @@ interface InvoiceSettings {
   default_template: string;
 }
 
+interface DiscountAuthority {
+  id: string;
+  employee_id: string;
+  max_discount_percent: number;
+  employees: { id: string; full_name: string; category: string } | null;
+}
+
 const CollectFee = () => {
   const { schoolId, user } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
@@ -61,6 +69,7 @@ const CollectFee = () => {
   const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null);
+  const [discountAuthorities, setDiscountAuthorities] = useState<DiscountAuthority[]>([]);
   const [loading, setLoading] = useState(false);
   
   // Form state
@@ -74,6 +83,11 @@ const CollectFee = () => {
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ReceiptTemplate>("A4");
   
+  // Discount state
+  const [discountAmount, setDiscountAmount] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
+  const [discountAuthorityId, setDiscountAuthorityId] = useState("");
+  
   const [openStudentCombobox, setOpenStudentCombobox] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
 
@@ -82,6 +96,7 @@ const CollectFee = () => {
       fetchClasses();
       fetchSchoolInfo();
       fetchInvoiceSettings();
+      fetchDiscountAuthorities();
     }
   }, [schoolId]);
 
@@ -115,6 +130,18 @@ const CollectFee = () => {
     }
   };
 
+  const fetchDiscountAuthorities = async () => {
+    const { data } = await supabase
+      .from("fee_discount_authorities")
+      .select(`
+        id, employee_id, max_discount_percent,
+        employees (id, full_name, category)
+      `)
+      .eq("school_id", schoolId)
+      .eq("is_active", true);
+    setDiscountAuthorities((data as DiscountAuthority[]) || []);
+  };
+
   const fetchStudents = async (classId: string) => {
     const { data } = await supabase
       .from("students")
@@ -130,7 +157,7 @@ const CollectFee = () => {
     const { data, error } = await supabase
       .from("student_fees")
       .select(`
-        id, amount, paid_amount, due_date, status, fee_structure_id,
+        id, amount, paid_amount, due_date, status, fee_structure_id, discount_amount,
         fee_structures (name)
       `)
       .eq("school_id", schoolId)
@@ -141,7 +168,7 @@ const CollectFee = () => {
     if (error) {
       console.error("Error fetching student fees:", error);
     }
-    setStudentFees(data || []);
+    setStudentFees((data as StudentFee[]) || []);
   };
 
   const handleClassChange = (classId: string) => {
@@ -225,8 +252,16 @@ const CollectFee = () => {
     }
 
     const amount = parseFloat(paymentAmount);
+    const discount = parseFloat(discountAmount) || 0;
+    
     if (isNaN(amount) || amount <= 0) {
       toast.error("Please enter a valid payment amount");
+      return;
+    }
+
+    // Validate discount authorization
+    if (discount > 0 && !discountAuthorityId) {
+      toast.error("Please select an authority for discount approval");
       return;
     }
 
@@ -245,9 +280,17 @@ const CollectFee = () => {
       }
 
       const currentPaid = selectedFee.paid_amount || 0;
+      const existingDiscount = selectedFee.discount_amount || 0;
+      const totalDiscount = existingDiscount + discount;
+      const effectiveAmount = selectedFee.amount - totalDiscount;
       const newPaidAmount = currentPaid + amount;
-      const newStatus = newPaidAmount >= selectedFee.amount ? "paid" : "partial";
+      const newStatus = newPaidAmount >= effectiveAmount ? "paid" : "partial";
       const receiptNumber = `RCP-${Date.now().toString(36).toUpperCase()}`;
+
+      // Get authority employee ID
+      const authorityEmployeeId = discountAuthorityId 
+        ? discountAuthorities.find(a => a.id === discountAuthorityId)?.employee_id 
+        : null;
 
       const { error } = await supabase
         .from("student_fees")
@@ -259,15 +302,18 @@ const CollectFee = () => {
           payment_mode: paymentMode,
           payment_screenshot_url: screenshotUrl,
           collected_by: user?.id,
+          discount_amount: totalDiscount,
+          discount_reason: discountReason || null,
+          discount_authorized_by: authorityEmployeeId,
         })
         .eq("id", selectedFee.id);
 
       if (error) throw error;
 
-      toast.success(`Payment of ₹${amount.toLocaleString()} recorded successfully!`);
+      toast.success(`Payment of ₹${amount.toLocaleString()}${discount > 0 ? ` with ₹${discount.toLocaleString()} discount` : ''} recorded successfully!`);
       
       // Generate and show receipt
-      printReceipt(receiptNumber, amount, newPaidAmount);
+      printReceipt(receiptNumber, amount, newPaidAmount, discount);
       
       // Reset form
       setPaymentAmount("");
@@ -275,6 +321,9 @@ const CollectFee = () => {
       setTransactionRef("");
       setScreenshotFile(null);
       setSelectedFeeId("");
+      setDiscountAmount("");
+      setDiscountReason("");
+      setDiscountAuthorityId("");
       fetchStudentFees(selectedStudentId);
     } catch (error: any) {
       toast.error(error.message);
@@ -283,7 +332,7 @@ const CollectFee = () => {
     }
   };
 
-  const printReceipt = (receiptNumber: string, paidAmount: number, totalPaid: number) => {
+  const printReceipt = (receiptNumber: string, paidAmount: number, totalPaid: number, discountApplied: number = 0) => {
     if (!schoolInfo || !selectedStudent || !selectedFee || !selectedClass) return;
 
     const receiptData = {
@@ -297,6 +346,7 @@ const CollectFee = () => {
       amount: selectedFee.amount,
       paidAmount: totalPaid,
       currentPayment: paidAmount,
+      discountAmount: discountApplied,
       paymentDate: format(new Date(), "dd MMM yyyy"),
       paymentMode: paymentMode.charAt(0).toUpperCase() + paymentMode.slice(1),
       transactionRef: transactionRef || undefined,
@@ -577,6 +627,76 @@ const CollectFee = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Discount Section */}
+                  <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                    <CardContent className="pt-4 space-y-4">
+                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                        <Percent className="h-4 w-4" />
+                        <Label className="font-semibold">Apply Discount (Optional)</Label>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Discount Amount (₹)</Label>
+                          <div className="relative">
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type="number"
+                              value={discountAmount}
+                              onChange={(e) => setDiscountAmount(e.target.value)}
+                              placeholder="0"
+                              className="pl-10"
+                              max={selectedFee.amount - (selectedFee.paid_amount || 0)}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Authorized By {parseFloat(discountAmount) > 0 ? "*" : ""}</Label>
+                          <Select 
+                            value={discountAuthorityId} 
+                            onValueChange={setDiscountAuthorityId}
+                            disabled={!discountAmount || parseFloat(discountAmount) <= 0}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select authority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {discountAuthorities.length === 0 ? (
+                                <SelectItem value="none" disabled>No authorities configured</SelectItem>
+                              ) : (
+                                discountAuthorities.map((auth) => (
+                                  <SelectItem key={auth.id} value={auth.id}>
+                                    <div className="flex items-center gap-2">
+                                      <UserCheck className="h-4 w-4" />
+                                      {auth.employees?.full_name} 
+                                      <span className="text-xs text-muted-foreground">
+                                        ({auth.employees?.category})
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {parseFloat(discountAmount) > 0 && (
+                        <div className="space-y-2">
+                          <Label>Discount Reason</Label>
+                          <Input
+                            value={discountReason}
+                            onChange={(e) => setDiscountReason(e.target.value)}
+                            placeholder="e.g., Sibling discount, Merit scholarship"
+                          />
+                        </div>
+                      )}
+                      {discountAuthorities.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Note: Configure discount authorities in Settings to enable discounts.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   {/* Receipt Template Selection */}
                   <div className="space-y-2">

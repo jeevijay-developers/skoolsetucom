@@ -77,6 +77,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Fees", url: "/school-admin/fees", icon: DollarSign },
     { title: "Collect Fee", url: "/school-admin/collect-fee", icon: Receipt },
     { title: "Invoice Settings", url: "/school-admin/invoice-settings", icon: FileText },
+    { title: "Discount Authorities", url: "/school-admin/discount-authorities", icon: Tag },
     { title: "Exams", url: "/school-admin/exams", icon: ClipboardList },
     { title: "Employees", url: "/school-admin/employees", icon: Users },
     { title: "Payroll", url: "/school-admin/payroll", icon: CreditCard },
