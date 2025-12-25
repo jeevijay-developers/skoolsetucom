@@ -321,7 +321,7 @@ const Register = () => {
                 </div>
                 <div className="flex items-center gap-3 text-primary-foreground/90">
                   <CheckCircle className="w-5 h-5 text-secondary" />
-                  <span>Cancel anytime</span>
+                  <span>WhatsApp notifications</span>
                 </div>
               </div>
             </div>
