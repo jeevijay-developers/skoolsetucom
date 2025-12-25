@@ -203,7 +203,8 @@ const Classes = () => {
       }
       
       toast.success("Class teacher updated");
-      fetchClasses();
+      await fetchClasses();
+      setManageDialogOpen(false);
     } catch (error: any) {
       toast.error(error.message);
     }
