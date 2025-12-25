@@ -57,6 +57,7 @@ import SuperAdminSchools from "./pages/super-admin/Schools";
 import SuperAdminSubscriptions from "./pages/super-admin/Subscriptions";
 import SuperAdminPayments from "./pages/super-admin/Payments";
 import SuperAdminCoupons from "./pages/super-admin/Coupons";
+import SuperAdminTrialLeads from "./pages/super-admin/TrialLeads";
 
 // Teacher pages extended
 import TeacherAttendance from "./pages/teacher/Attendance";
@@ -126,6 +127,7 @@ const App = () => (
               <Route path="/super-admin/subscriptions" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminSubscriptions /></ProtectedRoute>} />
               <Route path="/super-admin/payments" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminPayments /></ProtectedRoute>} />
               <Route path="/super-admin/coupons" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminCoupons /></ProtectedRoute>} />
+              <Route path="/super-admin/trial-leads" element={<ProtectedRoute allowedRoles={["super_admin"]}><SuperAdminTrialLeads /></ProtectedRoute>} />
 
               {/* Teacher Routes Extended */}
               <Route path="/teacher/attendance" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherAttendance /></ProtectedRoute>} />

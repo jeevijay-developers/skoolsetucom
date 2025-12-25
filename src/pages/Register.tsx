@@ -1,14 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, School, User, CheckCircle } from "lucide-react";
+import { ArrowLeft, School, User, CheckCircle, Sparkles, Shield, Users, Crown, IndianRupee } from "lucide-react";
 import logo from "@/assets/skoolsetu-logo.png";
 
 const INDIAN_STATES = [
@@ -24,8 +23,14 @@ const BOARDS = ["CBSE", "ICSE", "State Board", "IB", "IGCSE", "Other"];
 
 const Register = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  
+  // Get pricing data from URL params
+  const selectedPlan = searchParams.get("plan") || "basic";
+  const selectedStudents = parseInt(searchParams.get("students") || "50");
+  const selectedBilling = searchParams.get("billing") || "monthly";
   
   // School details
   const [schoolName, setSchoolName] = useState("");
@@ -37,7 +42,7 @@ const Register = () => {
   const [pincode, setPincode] = useState("");
   const [principalName, setPrincipalName] = useState("");
   const [board, setBoard] = useState("");
-  const [studentCount, setStudentCount] = useState("");
+  const [studentCount, setStudentCount] = useState(selectedStudents.toString());
   
   // Admin details
   const [adminName, setAdminName] = useState("");
@@ -45,6 +50,13 @@ const Register = () => {
   const [adminPhone, setAdminPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Update student count from URL params
+  useEffect(() => {
+    if (selectedStudents) {
+      setStudentCount(selectedStudents.toString());
+    }
+  }, [selectedStudents]);
 
   const validateStep1 = () => {
     if (!schoolName.trim()) {
@@ -139,19 +151,31 @@ const Register = () => {
         _address: address || null,
         _pincode: pincode || null,
         _principal_name: principalName || null,
-        _student_count: studentCount ? parseInt(studentCount) : 0
+        _student_count: studentCount ? parseInt(studentCount) : selectedStudents
       });
 
       if (regError) {
         console.error("Registration error:", regError);
-        // If school creation fails, user can complete registration later
         toast.error("School setup incomplete. Please complete registration after logging in.");
         navigate("/complete-registration");
         setLoading(false);
         return;
       }
 
-      // 3. Update profile with phone (optional, non-critical)
+      // 3. Update subscription with pricing data
+      const schoolId = (regData as any)?.school_id;
+      if (schoolId) {
+        await supabase
+          .from("subscriptions")
+          .update({
+            plan: selectedPlan as "basic" | "pro",
+            billing_cycle: selectedBilling,
+            student_count: parseInt(studentCount) || selectedStudents
+          })
+          .eq("school_id", schoolId);
+      }
+
+      // 4. Update profile with phone (optional, non-critical)
       if (adminPhone) {
         await supabase
           .from("profiles")
@@ -170,368 +194,468 @@ const Register = () => {
     }
   };
 
+  // Calculate price for display
+  const pricePerDay = selectedPlan === "pro" 
+    ? (selectedBilling === "annually" ? 2 : 3)
+    : (selectedBilling === "annually" ? 1 : 2);
+  const monthlyPrice = parseInt(studentCount || "50") * pricePerDay * 30;
+  const displayPrice = selectedBilling === "annually" ? monthlyPrice * 12 : monthlyPrice;
+
   return (
     <>
       <Helmet>
-        <title>Register Your School - SkoolSetu</title>
+        <title>Start Free Trial - SkoolSetu</title>
         <meta name="description" content="Register your school on SkoolSetu and start your 1-day free trial. Complete school management solution for Indian schools." />
       </Helmet>
 
-      <div className="min-h-screen bg-muted/30 py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex">
+        {/* Left Panel - Plan Summary */}
+        <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-primary to-primary/80 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_rgba(255,255,255,0.1)_0%,_transparent_50%)]"></div>
+          
+          <div className="relative z-10 flex flex-col justify-between p-12 text-primary-foreground w-full">
+            <div>
+              <Link to="/">
+                <img src={logo} alt="SkoolSetu" className="h-12 brightness-0 invert" />
+              </Link>
+            </div>
+            
+            <div className="space-y-8">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-full text-sm font-semibold mb-4">
+                  <Sparkles className="w-4 h-4" />
+                  1-Day Free Trial
+                </div>
+                <h1 className="text-3xl font-bold mb-4">Start Your Free Trial</h1>
+                <p className="text-lg text-primary-foreground/80">
+                  Experience the complete school management solution with no commitment.
+                </p>
+              </div>
+
+              {/* Selected Plan Summary */}
+              <div className="bg-primary-foreground/10 backdrop-blur rounded-2xl p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {selectedPlan === "pro" ? (
+                      <Crown className="w-5 h-5 text-secondary" />
+                    ) : (
+                      <Shield className="w-5 h-5" />
+                    )}
+                    <span className="font-semibold text-lg capitalize">{selectedPlan} Plan</span>
+                  </div>
+                  <span className="text-sm bg-primary-foreground/20 px-3 py-1 rounded-full capitalize">
+                    {selectedBilling}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2 text-primary-foreground/80">
+                  <Users className="w-4 h-4" />
+                  <span>{studentCount || selectedStudents} Students</span>
+                </div>
+
+                <div className="pt-4 border-t border-primary-foreground/20">
+                  <p className="text-sm text-primary-foreground/60 mb-1">After free trial</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold">₹{displayPrice.toLocaleString('en-IN')}</span>
+                    <span className="text-primary-foreground/60">/{selectedBilling === "annually" ? "year" : "month"}</span>
+                  </div>
+                  <p className="text-sm text-secondary mt-1">
+                    ₹{pricePerDay}/student/day
+                  </p>
+                </div>
+
+                {selectedBilling === "annually" && selectedPlan === "basic" && (
+                  <div className="flex items-center gap-2 text-secondary bg-secondary/20 px-3 py-2 rounded-lg text-sm">
+                    <IndianRupee className="w-4 h-4" />
+                    <span className="font-medium">Pen se bhi Sasta — ₹1/day!</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-primary-foreground/90">
+                  <CheckCircle className="w-5 h-5 text-secondary" />
+                  <span>Full access during trial</span>
+                </div>
+                <div className="flex items-center gap-3 text-primary-foreground/90">
+                  <CheckCircle className="w-5 h-5 text-secondary" />
+                  <span>No credit card required</span>
+                </div>
+                <div className="flex items-center gap-3 text-primary-foreground/90">
+                  <CheckCircle className="w-5 h-5 text-secondary" />
+                  <span>Cancel anytime</span>
+                </div>
+              </div>
+            </div>
+            
+            <p className="text-sm text-primary-foreground/60">
+              © 2024 SkoolSetu by Jeevijay Technologies
+            </p>
+          </div>
+        </div>
+
+        {/* Right Panel - Registration Form */}
+        <div className="flex-1 flex flex-col overflow-y-auto">
+          {/* Mobile Header */}
+          <div className="lg:hidden p-4 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur z-10">
+            <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              <span>Back to Home</span>
+              <span>Back</span>
             </Link>
             <Link to="/">
-              <img src={logo} alt="SkoolSetu" className="h-10" />
+              <img src={logo} alt="SkoolSetu" className="h-8" />
+            </Link>
+          </div>
+
+          {/* Desktop Back Link */}
+          <div className="hidden lg:block p-6">
+            <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Home</span>
             </Link>
           </div>
 
           {/* Progress Steps */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center gap-4">
-              <div className={`flex items-center gap-2 ${step >= 1 ? "text-primary" : "text-muted-foreground"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                  {step > 1 ? <CheckCircle className="h-5 w-5" /> : "1"}
+          <div className="px-6 py-4">
+            <div className="max-w-2xl mx-auto flex items-center justify-center gap-4">
+              {[
+                { num: 1, label: "School Details" },
+                { num: 2, label: "Admin Account" },
+                { num: 3, label: "Complete" }
+              ].map((s, i) => (
+                <div key={s.num} className="flex items-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
+                    step >= s.num 
+                      ? step > s.num 
+                        ? "bg-secondary text-secondary-foreground" 
+                        : "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    {step > s.num ? <CheckCircle className="h-5 w-5" /> : s.num}
+                  </div>
+                  <span className={`hidden sm:inline text-sm font-medium ${
+                    step >= s.num ? "text-foreground" : "text-muted-foreground"
+                  }`}>{s.label}</span>
+                  {i < 2 && <div className="w-8 h-0.5 bg-border mx-2" />}
                 </div>
-                <span className="hidden sm:inline font-medium">School Details</span>
-              </div>
-              <div className="w-12 h-0.5 bg-border" />
-              <div className={`flex items-center gap-2 ${step >= 2 ? "text-primary" : "text-muted-foreground"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 2 ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                  {step > 2 ? <CheckCircle className="h-5 w-5" /> : "2"}
-                </div>
-                <span className="hidden sm:inline font-medium">Admin Account</span>
-              </div>
-              <div className="w-12 h-0.5 bg-border" />
-              <div className={`flex items-center gap-2 ${step >= 3 ? "text-secondary" : "text-muted-foreground"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 3 ? "bg-secondary text-secondary-foreground" : "bg-muted"}`}>
-                  {step >= 3 ? <CheckCircle className="h-5 w-5" /> : "3"}
-                </div>
-                <span className="hidden sm:inline font-medium">Complete</span>
-              </div>
+              ))}
             </div>
           </div>
 
-          {/* Step 1: School Details */}
-          {step === 1 && (
-            <Card className="shadow-card">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <School className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="text-2xl">School Information</CardTitle>
-                <CardDescription>
-                  Tell us about your school to get started
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="schoolName">School Name *</Label>
-                  <Input
-                    id="schoolName"
-                    placeholder="e.g., Delhi Public School"
-                    value={schoolName}
-                    onChange={(e) => setSchoolName(e.target.value)}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="schoolEmail">School Email *</Label>
-                    <Input
-                      id="schoolEmail"
-                      type="email"
-                      placeholder="info@school.edu"
-                      value={schoolEmail}
-                      onChange={(e) => setSchoolEmail(e.target.value)}
-                    />
+          {/* Form Container */}
+          <div className="flex-1 flex items-start justify-center p-6">
+            <div className="w-full max-w-2xl">
+              {/* Mobile Plan Summary */}
+              <div className="lg:hidden mb-6 bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {selectedPlan === "pro" ? <Crown className="w-4 h-4 text-primary" /> : <Shield className="w-4 h-4 text-primary" />}
+                    <span className="font-semibold capitalize">{selectedPlan} Plan</span>
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full capitalize">{selectedBilling}</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="schoolPhone">Phone Number *</Label>
-                    <Input
-                      id="schoolPhone"
-                      type="tel"
-                      placeholder="9876543210"
-                      value={schoolPhone}
-                      onChange={(e) => setSchoolPhone(e.target.value)}
-                    />
-                  </div>
+                  <span className="font-bold">₹{displayPrice.toLocaleString('en-IN')}</span>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    placeholder="Street address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City *</Label>
-                    <Input
-                      id="city"
-                      placeholder="City"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                    />
+              {/* Step 1: School Details */}
+              {step === 1 && (
+                <div className="bg-card rounded-2xl shadow-card border border-border p-8">
+                  <div className="text-center mb-8">
+                    <div className="mx-auto w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
+                      <School className="h-7 w-7 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-foreground">School Information</h2>
+                    <p className="text-muted-foreground mt-1">Tell us about your school</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="state">State *</Label>
-                    <Select value={state} onValueChange={setState}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select state" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INDIAN_STATES.map((s) => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="pincode">Pincode</Label>
-                    <Input
-                      id="pincode"
-                      placeholder="110001"
-                      value={pincode}
-                      onChange={(e) => setPincode(e.target.value)}
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="board">Education Board *</Label>
-                    <Select value={board} onValueChange={setBoard}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select board" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BOARDS.map((b) => (
-                          <SelectItem key={b} value={b}>{b}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="studentCount">Number of Students</Label>
-                    <Input
-                      id="studentCount"
-                      type="number"
-                      placeholder="500"
-                      value={studentCount}
-                      onChange={(e) => setStudentCount(e.target.value)}
-                    />
-                  </div>
-                </div>
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="schoolName" className="font-medium">School Name *</Label>
+                      <Input
+                        id="schoolName"
+                        placeholder="e.g., Delhi Public School"
+                        value={schoolName}
+                        onChange={(e) => setSchoolName(e.target.value)}
+                        className="h-12"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="principalName">Principal Name</Label>
-                  <Input
-                    id="principalName"
-                    placeholder="Dr. Sharma"
-                    value={principalName}
-                    onChange={(e) => setPrincipalName(e.target.value)}
-                  />
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="schoolEmail" className="font-medium">School Email *</Label>
+                        <Input
+                          id="schoolEmail"
+                          type="email"
+                          placeholder="info@school.edu"
+                          value={schoolEmail}
+                          onChange={(e) => setSchoolEmail(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="schoolPhone" className="font-medium">Phone Number *</Label>
+                        <Input
+                          id="schoolPhone"
+                          type="tel"
+                          placeholder="9876543210"
+                          value={schoolPhone}
+                          onChange={(e) => setSchoolPhone(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                    </div>
 
-                <Button 
-                  className="w-full mt-6" 
-                  size="lg"
-                  onClick={() => {
-                    if (validateStep1()) setStep(2);
-                  }}
-                >
-                  Continue to Admin Setup
-                </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="address" className="font-medium">Address</Label>
+                      <Input
+                        id="address"
+                        placeholder="Street address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="h-12"
+                      />
+                    </div>
 
-                <p className="text-center text-sm text-muted-foreground">
-                  Already have an account?{" "}
-                  <Link to="/login" className="text-primary hover:underline font-medium">
-                    Login here
-                  </Link>
-                </p>
-              </CardContent>
-            </Card>
-          )}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city" className="font-medium">City *</Label>
+                        <Input
+                          id="city"
+                          placeholder="City"
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="state" className="font-medium">State *</Label>
+                        <Select value={state} onValueChange={setState}>
+                          <SelectTrigger className="h-12">
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {INDIAN_STATES.map((s) => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="pincode" className="font-medium">Pincode</Label>
+                        <Input
+                          id="pincode"
+                          placeholder="110001"
+                          value={pincode}
+                          onChange={(e) => setPincode(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                    </div>
 
-          {/* Step 2: Admin Account */}
-          {step === 2 && (
-            <Card className="shadow-card">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <User className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="text-2xl">Admin Account</CardTitle>
-                <CardDescription>
-                  Create your school administrator account
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="adminName">Full Name *</Label>
-                  <Input
-                    id="adminName"
-                    placeholder="Your full name"
-                    value={adminName}
-                    onChange={(e) => setAdminName(e.target.value)}
-                  />
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="board" className="font-medium">Education Board *</Label>
+                        <Select value={board} onValueChange={setBoard}>
+                          <SelectTrigger className="h-12">
+                            <SelectValue placeholder="Select board" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BOARDS.map((b) => (
+                              <SelectItem key={b} value={b}>{b}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="studentCount" className="font-medium">Number of Students</Label>
+                        <Input
+                          id="studentCount"
+                          type="number"
+                          placeholder="500"
+                          value={studentCount}
+                          onChange={(e) => setStudentCount(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="adminEmail">Email Address *</Label>
-                    <Input
-                      id="adminEmail"
-                      type="email"
-                      placeholder="admin@school.edu"
-                      value={adminEmail}
-                      onChange={(e) => setAdminEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="adminPhone">Phone Number</Label>
-                    <Input
-                      id="adminPhone"
-                      type="tel"
-                      placeholder="9876543210"
-                      value={adminPhone}
-                      onChange={(e) => setAdminPhone(e.target.value)}
-                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="principalName" className="font-medium">Principal Name</Label>
+                      <Input
+                        id="principalName"
+                        placeholder="Dr. Sharma"
+                        value={principalName}
+                        onChange={(e) => setPrincipalName(e.target.value)}
+                        className="h-12"
+                      />
+                    </div>
+
+                    <Button 
+                      className="w-full h-12 text-base font-semibold mt-4" 
+                      size="lg"
+                      onClick={() => {
+                        if (validateStep1()) setStep(2);
+                      }}
+                    >
+                      Continue to Admin Setup
+                    </Button>
+
+                    <p className="text-center text-sm text-muted-foreground">
+                      Already have an account?{" "}
+                      <Link to="/login" className="text-primary hover:underline font-semibold">
+                        Login here
+                      </Link>
+                    </p>
                   </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Min. 6 characters"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
+              {/* Step 2: Admin Account */}
+              {step === 2 && (
+                <div className="bg-card rounded-2xl shadow-card border border-border p-8">
+                  <div className="text-center mb-8">
+                    <div className="mx-auto w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
+                      <User className="h-7 w-7 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-foreground">Admin Account</h2>
+                    <p className="text-muted-foreground mt-1">Create your administrator account</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
+
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="adminName" className="font-medium">Full Name *</Label>
+                      <Input
+                        id="adminName"
+                        placeholder="Your full name"
+                        value={adminName}
+                        onChange={(e) => setAdminName(e.target.value)}
+                        className="h-12"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="adminEmail" className="font-medium">Email Address *</Label>
+                        <Input
+                          id="adminEmail"
+                          type="email"
+                          placeholder="admin@school.edu"
+                          value={adminEmail}
+                          onChange={(e) => setAdminEmail(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="adminPhone" className="font-medium">Phone Number</Label>
+                        <Input
+                          id="adminPhone"
+                          type="tel"
+                          placeholder="9876543210"
+                          value={adminPhone}
+                          onChange={(e) => setAdminPhone(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="password" className="font-medium">Password *</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="Min. 6 characters"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword" className="font-medium">Confirm Password *</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          placeholder="Confirm password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 mt-6">
+                      <Button 
+                        variant="outline"
+                        className="flex-1 h-12" 
+                        size="lg"
+                        onClick={() => setStep(1)}
+                      >
+                        Back
+                      </Button>
+                      <Button 
+                        className="flex-1 h-12 font-semibold" 
+                        size="lg"
+                        onClick={handleSubmit}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <span className="flex items-center gap-2">
+                            <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground"></span>
+                            Creating...
+                          </span>
+                        ) : (
+                          "Start Free Trial"
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                <div className="flex gap-4 mt-6">
-                  <Button 
-                    variant="outline"
-                    className="flex-1" 
-                    size="lg"
-                    onClick={() => setStep(1)}
-                  >
-                    Back
-                  </Button>
-                  <Button 
-                    className="flex-1" 
-                    size="lg"
-                    onClick={handleSubmit}
-                    disabled={loading}
-                  >
-                    {loading ? "Creating Account..." : "Complete Registration"}
-                  </Button>
-                </div>
-
-                <p className="text-center text-sm text-muted-foreground">
-                  By registering, you agree to our{" "}
-                  <a href="#" className="text-primary hover:underline">Terms of Service</a>
-                  {" "}and{" "}
-                  <a href="#" className="text-primary hover:underline">Privacy Policy</a>
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Success */}
-          {step === 3 && (
-            <Card className="shadow-card">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle className="h-8 w-8 text-secondary" />
-                </div>
-                <CardTitle className="text-2xl text-secondary">Registration Complete!</CardTitle>
-                <CardDescription className="text-base">
-                  Welcome to SkoolSetu, {adminName}!
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <h4 className="font-medium">Your 1-Day Free Trial has started!</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Explore all features including student management, attendance tracking, 
-                    fee collection, exam management, and more.
+              {/* Step 3: Success */}
+              {step === 3 && (
+                <div className="bg-card rounded-2xl shadow-card border border-border p-8 text-center">
+                  <div className="mx-auto w-20 h-20 bg-secondary/10 rounded-full flex items-center justify-center mb-6">
+                    <CheckCircle className="h-10 w-10 text-secondary" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">Welcome to SkoolSetu!</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Your 1-day free trial has started. Explore all features with full access.
                   </p>
+
+                  <div className="bg-muted/50 rounded-xl p-6 mb-6 text-left space-y-3">
+                    <h3 className="font-semibold">What's Next?</h3>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-secondary">1</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Add your classes and sections</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-secondary">2</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Register students and teachers</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-secondary">3</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Set up fee structures</p>
+                    </div>
+                  </div>
+
+                  <Button 
+                    size="lg" 
+                    className="w-full h-12 font-semibold"
+                    onClick={() => navigate("/school-admin")}
+                  >
+                    Go to Dashboard
+                  </Button>
                 </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-medium">What's Next?</h4>
-                  <ul className="text-sm text-muted-foreground space-y-2">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
-                      <span>Add your teachers and assign them to classes</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
-                      <span>Create classes and sections for your school</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
-                      <span>Add students and their parent information</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
-                      <span>Set up fee structures for different classes</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  onClick={() => navigate("/school-admin")}
-                >
-                  Go to Dashboard
-                </Button>
-
-                <p className="text-center text-sm text-muted-foreground">
-                  Need help getting started?{" "}
-                  <a href="mailto:support@skoolsetu.com" className="text-primary hover:underline">
-                    Contact Support
-                  </a>
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Trial Banner */}
-          {step < 3 && (
-            <div className="mt-6 bg-secondary/10 border border-secondary/20 rounded-lg p-4 text-center">
-              <p className="text-sm font-medium text-secondary">
-                🎉 Start your 1-Day Free Trial with full access to all features!
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                No credit card required. Upgrade anytime.
-              </p>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </>
