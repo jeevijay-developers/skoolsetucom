@@ -39,7 +39,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy } from "lucide-react";
 
 interface Student {
   id: string;
@@ -50,6 +50,7 @@ interface Student {
   parent_name: string | null;
   parent_phone: string | null;
   parent_email: string | null;
+  parent_user_id: string | null;
   gender: string | null;
   date_of_birth: string | null;
   is_active: boolean;
@@ -71,6 +72,9 @@ const Students = () => {
   const [filterClass, setFilterClass] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [creatingLogin, setCreatingLogin] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
   const [formData, setFormData] = useState({
     full_name: "",
     roll_number: "",
@@ -97,7 +101,9 @@ const Students = () => {
       const { data, error } = await supabase
         .from("students")
         .select(`
-          *,
+          id, full_name, roll_number, admission_number, class_id,
+          parent_name, parent_phone, parent_email, parent_user_id,
+          gender, date_of_birth, is_active,
           classes:class_id (name, section)
         `)
         .eq("school_id", schoolId)
@@ -111,6 +117,48 @@ const Students = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  };
+
+  const handleCreateParentLogin = async (student: Student) => {
+    if (!student.parent_email) {
+      toast.error("Parent email is required to create login");
+      return;
+    }
+    if (student.parent_user_id) {
+      toast.error("Parent login already exists");
+      return;
+    }
+
+    setCreatingLogin(true);
+    const tempPassword = generatePassword();
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-parent-login", {
+        body: { student_id: student.id, temp_password: tempPassword },
+      });
+
+      if (error) throw error;
+
+      setCreatedCredentials({ email: student.parent_email, password: tempPassword });
+      setLoginDialogOpen(true);
+      toast.success("Parent login created successfully");
+      fetchStudents();
+    } catch (error: any) {
+      console.error("Error creating parent login:", error);
+      toast.error(error.message || "Failed to create parent login");
+    } finally {
+      setCreatingLogin(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
   };
 
   const fetchClasses = async () => {
@@ -526,6 +574,13 @@ const Students = () => {
                                   )}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
+                                  onClick={() => handleCreateParentLogin(student)}
+                                  disabled={!student.parent_email || !!student.parent_user_id || creatingLogin}
+                                >
+                                  <Key className="h-4 w-4 mr-2" />
+                                  {student.parent_user_id ? "Login Created" : "Create Parent Login"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
                                   onClick={() => handleDelete(student)}
                                   className="text-destructive"
                                 >
@@ -543,6 +598,48 @@ const Students = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Parent Login Credentials Dialog */}
+          <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Parent Login Created</DialogTitle>
+                <DialogDescription>
+                  Share these credentials with the parent. They can use these to login.
+                </DialogDescription>
+              </DialogHeader>
+              {createdCredentials && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-secondary rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Email</Label>
+                        <p className="font-mono">{createdCredentials.email}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(createdCredentials.email)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Temporary Password</Label>
+                        <p className="font-mono font-bold">{createdCredentials.password}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(createdCredentials.password)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    The parent should change their password after first login using "Forgot Password".
+                  </p>
+                </div>
+              )}
+              <DialogFooter>
+                <Button onClick={() => setLoginDialogOpen(false)}>Close</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </DashboardLayout>
     </>
