@@ -16,6 +16,7 @@ import ResetPassword from "./pages/ResetPassword";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import NotFound from "./pages/NotFound";
 import Contact from "./pages/Contact";
+import AboutJeevijay from "./pages/AboutJeevijay";
 
 // School Admin pages
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
@@ -84,6 +85,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/complete-registration" element={<CompleteRegistration />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/about-jeevijay" element={<AboutJeevijay />} />
 
               {/* School Admin Routes */}
               <Route path="/school-admin" element={<ProtectedRoute allowedRoles={["school_admin"]}><SchoolAdminDashboard /></ProtectedRoute>} />
