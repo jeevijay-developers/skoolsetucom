@@ -122,13 +122,24 @@ const Register = () => {
         return;
       }
 
-      if (!authData.user) {
+      if (!authData.user || !authData.session) {
         toast.error("Failed to create account. Please try again.");
         setLoading(false);
         return;
       }
 
       const userId = authData.user.id;
+
+      // Wait a moment for the session to be fully established
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Verify we have a valid session before proceeding
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error("Session not established. Please try again.");
+        setLoading(false);
+        return;
+      }
 
       // 2. Create the school
       const { data: schoolData, error: schoolError } = await supabase
@@ -151,7 +162,7 @@ const Register = () => {
 
       if (schoolError) {
         console.error("School creation error:", schoolError);
-        toast.error("Failed to create school. Please contact support.");
+        toast.error("Failed to create school. Please try logging in and completing registration.");
         setLoading(false);
         return;
       }
