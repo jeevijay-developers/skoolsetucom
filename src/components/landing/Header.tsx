@@ -8,19 +8,26 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollingNotice, setScrollingNotice] = useState("");
 
-  const notices = [
-    "🎉 New Year Admissions Open!",
-    "📚 Free Demo Available",
-    "⭐ Trusted by 500+ Schools",
+  const educationFacts = [
+    "💡 Did you know? India has the world's largest education system with 1.5 million schools!",
+    "📚 Fun Fact: The first university in the world, Takshashila, was founded in India in 700 BC!",
+    "🎓 Did you know? India produces over 1.5 million engineers every year!",
+    "✨ Fun Fact: Sanskrit is considered the mother of all European languages!",
+    "📖 Did you know? India's literacy rate has grown from 12% in 1947 to over 77% today!",
+    "🏫 Fun Fact: Nalanda University had 10,000+ students from all over the world in 5th century!",
+    "🌟 Did you know? India has the largest number of schools in the world!",
+    "📝 Fun Fact: Zero was invented in India by mathematician Aryabhata!",
+    "🎯 Did you know? Indian students excel in STEM fields globally!",
+    "💼 Fun Fact: IITs and IIMs are among the most competitive institutions worldwide!",
   ];
 
   useEffect(() => {
     let idx = 0;
-    setScrollingNotice(notices[0]);
+    setScrollingNotice(educationFacts[0]);
     const interval = setInterval(() => {
-      idx = (idx + 1) % notices.length;
-      setScrollingNotice(notices[idx]);
-    }, 4000);
+      idx = (idx + 1) % educationFacts.length;
+      setScrollingNotice(educationFacts[idx]);
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
