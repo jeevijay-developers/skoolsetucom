@@ -247,12 +247,12 @@ const Fees = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Apply to Class (optional)</Label>
-                      <Select value={structureForm.class_id} onValueChange={(v) => setStructureForm({ ...structureForm, class_id: v })}>
+                      <Select value={structureForm.class_id || "all"} onValueChange={(v) => setStructureForm({ ...structureForm, class_id: v === "all" ? "" : v })}>
                         <SelectTrigger>
                           <SelectValue placeholder="All Classes" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Classes</SelectItem>
+                          <SelectItem value="all">All Classes</SelectItem>
                           {classes.map((cls) => (
                             <SelectItem key={cls.id} value={cls.id}>
                               {cls.name} {cls.section ? `- ${cls.section}` : ""}
