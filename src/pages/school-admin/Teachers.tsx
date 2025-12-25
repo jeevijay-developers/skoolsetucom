@@ -62,6 +62,7 @@ const Teachers = () => {
     qualification: "",
     subjects: "",
     date_of_joining: "",
+    base_salary: "",
   });
   const [createAccount, setCreateAccount] = useState(false);
   const [accountPassword, setAccountPassword] = useState("");
@@ -125,6 +126,17 @@ const Teachers = () => {
         date_of_joining: formData.date_of_joining || null,
       };
 
+      const employeeData = {
+        full_name: formData.full_name,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        employee_code: formData.employee_id || null,
+        date_of_joining: formData.date_of_joining || null,
+        base_salary: formData.base_salary ? parseFloat(formData.base_salary) : 0,
+        category: "teacher",
+        school_id: schoolId!,
+      };
+
       if (editingTeacher) {
         const { error } = await supabase
           .from("teachers")
@@ -132,12 +144,28 @@ const Teachers = () => {
           .eq("id", editingTeacher.id);
 
         if (error) throw error;
+
+        // Update corresponding employee record
+        await supabase
+          .from("employees")
+          .update({
+            full_name: formData.full_name,
+            email: formData.email || null,
+            phone: formData.phone || null,
+            employee_code: formData.employee_id || null,
+            date_of_joining: formData.date_of_joining || null,
+            base_salary: formData.base_salary ? parseFloat(formData.base_salary) : 0,
+          })
+          .eq("email", editingTeacher.email)
+          .eq("school_id", schoolId!);
+
         toast.success("Teacher updated successfully");
       } else if (createAccount && accountPassword) {
-        // Use edge function to create teacher with login account
+        // Use edge function to create teacher with login account and employee
         const { data, error } = await supabase.functions.invoke("create-teacher-login", {
           body: {
             teacher_data: teacherData,
+            employee_data: employeeData,
             password: accountPassword,
             school_id: schoolId
           },
@@ -149,12 +177,19 @@ const Teachers = () => {
         toast.success("Teacher added with login account");
       } else {
         // Add teacher without login account
-        const { error } = await supabase.from("teachers").insert({
+        const { error: teacherError } = await supabase.from("teachers").insert({
           ...teacherData,
           school_id: schoolId!,
         });
 
-        if (error) throw error;
+        if (teacherError) throw teacherError;
+
+        // Also add to employees table
+        const { error: employeeError } = await supabase.from("employees").insert(employeeData);
+        if (employeeError) {
+          console.error("Error adding employee:", employeeError);
+        }
+
         toast.success("Teacher added successfully");
       }
 
@@ -167,8 +202,24 @@ const Teachers = () => {
     }
   };
 
-  const handleEdit = (teacher: Teacher) => {
+  const handleEdit = async (teacher: Teacher) => {
     setEditingTeacher(teacher);
+    
+    // Fetch salary from employees table
+    let baseSalary = "";
+    if (teacher.email) {
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("base_salary")
+        .eq("email", teacher.email)
+        .eq("school_id", schoolId!)
+        .maybeSingle();
+      
+      if (empData?.base_salary) {
+        baseSalary = empData.base_salary.toString();
+      }
+    }
+
     setFormData({
       full_name: teacher.full_name,
       email: teacher.email || "",
@@ -177,6 +228,7 @@ const Teachers = () => {
       qualification: teacher.qualification || "",
       subjects: teacher.subjects?.join(", ") || "",
       date_of_joining: teacher.date_of_joining || "",
+      base_salary: baseSalary,
     });
     setCreateAccount(false);
     setIsDialogOpen(true);
@@ -223,6 +275,7 @@ const Teachers = () => {
       qualification: "",
       subjects: "",
       date_of_joining: "",
+      base_salary: "",
     });
     setCreateAccount(false);
     setAccountPassword("");
@@ -331,14 +384,26 @@ const Teachers = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="subjects">Subjects (comma-separated)</Label>
-                      <Input
-                        id="subjects"
-                        value={formData.subjects}
-                        onChange={(e) => setFormData({ ...formData, subjects: e.target.value })}
-                        placeholder="Mathematics, Science, English"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="subjects">Subjects (comma-separated)</Label>
+                        <Input
+                          id="subjects"
+                          value={formData.subjects}
+                          onChange={(e) => setFormData({ ...formData, subjects: e.target.value })}
+                          placeholder="Mathematics, Science, English"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="base_salary">Monthly Salary (₹)</Label>
+                        <Input
+                          id="base_salary"
+                          type="number"
+                          value={formData.base_salary}
+                          onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
+                          placeholder="25000"
+                        />
+                      </div>
                     </div>
 
                     {!editingTeacher && (

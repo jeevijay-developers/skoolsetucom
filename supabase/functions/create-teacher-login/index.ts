@@ -19,7 +19,9 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    const { teacher_data, password, school_id } = await req.json();
+    const { teacher_data, employee_data, password, school_id } = await req.json();
+
+    console.log("Creating teacher with login:", { email: teacher_data?.email, school_id });
 
     if (!teacher_data?.email || !password || !school_id) {
       throw new Error("Missing required fields: email, password, or school_id");
@@ -34,10 +36,12 @@ serve(async (req) => {
     });
 
     if (authError) {
+      console.error("Auth error:", authError);
       throw new Error(`Failed to create user: ${authError.message}`);
     }
 
     const userId = authData.user.id;
+    console.log("Created auth user:", userId);
 
     // Create user role
     const { error: roleError } = await supabaseAdmin
@@ -49,10 +53,11 @@ serve(async (req) => {
       });
 
     if (roleError) {
-      // Cleanup: delete the auth user if role creation fails
+      console.error("Role error:", roleError);
       await supabaseAdmin.auth.admin.deleteUser(userId);
       throw new Error(`Failed to create role: ${roleError.message}`);
     }
+    console.log("Created user role");
 
     // Create teacher record
     const { error: teacherError } = await supabaseAdmin
@@ -64,10 +69,28 @@ serve(async (req) => {
       });
 
     if (teacherError) {
-      // Cleanup: delete the role and auth user
+      console.error("Teacher error:", teacherError);
       await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
       await supabaseAdmin.auth.admin.deleteUser(userId);
       throw new Error(`Failed to create teacher: ${teacherError.message}`);
+    }
+    console.log("Created teacher record");
+
+    // Create employee record if employee_data is provided
+    if (employee_data) {
+      const { error: employeeError } = await supabaseAdmin
+        .from("employees")
+        .insert({
+          ...employee_data,
+          school_id: school_id
+        });
+
+      if (employeeError) {
+        console.error("Employee error (non-fatal):", employeeError);
+        // Don't fail the whole operation if employee creation fails
+      } else {
+        console.log("Created employee record");
+      }
     }
 
     return new Response(
