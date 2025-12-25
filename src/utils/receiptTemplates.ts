@@ -21,6 +21,7 @@ interface ReceiptData {
   amount: number;
   paidAmount: number;
   currentPayment: number;
+  discountAmount?: number;
   paymentDate: string;
   paymentMode: string;
   transactionRef?: string;
@@ -214,6 +215,16 @@ const generateA4Template = (data: ReceiptData): string => `
           <span>Total Fee Amount</span>
           <span class="amount-value">₹${data.amount.toLocaleString('en-IN')}</span>
         </div>
+        ${data.discountAmount && data.discountAmount > 0 ? `
+        <div class="amount-row" style="color: #d97706;">
+          <span>Discount Applied</span>
+          <span class="amount-value" style="color: #d97706;">- ₹${data.discountAmount.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="amount-row">
+          <span>Net Amount After Discount</span>
+          <span class="amount-value">₹${(data.amount - data.discountAmount).toLocaleString('en-IN')}</span>
+        </div>
+        ` : ''}
         <div class="amount-row">
           <span>Current Payment</span>
           <span class="amount-value paid">₹${data.currentPayment.toLocaleString('en-IN')}</span>
@@ -224,7 +235,7 @@ const generateA4Template = (data: ReceiptData): string => `
         </div>
         <div class="amount-row">
           <span><strong>Balance Due</strong></span>
-          <span class="amount-value balance">₹${(data.amount - data.paidAmount).toLocaleString('en-IN')}</span>
+          <span class="amount-value balance">₹${(data.amount - (data.discountAmount || 0) - data.paidAmount).toLocaleString('en-IN')}</span>
         </div>
       </div>
       

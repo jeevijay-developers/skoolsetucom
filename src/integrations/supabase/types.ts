@@ -426,6 +426,48 @@ export type Database = {
           },
         ]
       }
+      fee_discount_authorities: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          is_active: boolean | null
+          max_discount_percent: number | null
+          school_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_active?: boolean | null
+          max_discount_percent?: number | null
+          school_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_active?: boolean | null
+          max_discount_percent?: number | null
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_discount_authorities_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_discount_authorities_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fee_reminders: {
         Row: {
           id: string
@@ -863,6 +905,9 @@ export type Database = {
           amount: number
           collected_by: string | null
           created_at: string
+          discount_amount: number | null
+          discount_authorized_by: string | null
+          discount_reason: string | null
           due_date: string
           fee_structure_id: string | null
           id: string
@@ -879,6 +924,9 @@ export type Database = {
           amount: number
           collected_by?: string | null
           created_at?: string
+          discount_amount?: number | null
+          discount_authorized_by?: string | null
+          discount_reason?: string | null
           due_date: string
           fee_structure_id?: string | null
           id?: string
@@ -895,6 +943,9 @@ export type Database = {
           amount?: number
           collected_by?: string | null
           created_at?: string
+          discount_amount?: number | null
+          discount_authorized_by?: string | null
+          discount_reason?: string | null
           due_date?: string
           fee_structure_id?: string | null
           id?: string
@@ -908,6 +959,13 @@ export type Database = {
           student_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_fees_discount_authorized_by_fkey"
+            columns: ["discount_authorized_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_fees_fee_structure_id_fkey"
             columns: ["fee_structure_id"]
