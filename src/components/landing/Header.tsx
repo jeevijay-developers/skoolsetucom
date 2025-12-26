@@ -69,16 +69,37 @@ const Header = () => {
         }}
       >
         <p 
-          className="font-chalk text-xs md:text-sm tracking-wide text-center px-4 animate-fade-in"
+          className="font-chalk text-xs md:text-sm tracking-wide text-center px-4"
           style={{ 
             color: 'rgba(255, 255, 255, 0.95)',
-            textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
+            textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+            animation: 'slideInOut 5s ease-in-out infinite',
           }}
           key={scrollingNotice}
         >
           {scrollingNotice}
         </p>
       </div>
+      <style>{`
+        @keyframes slideInOut {
+          0% {
+            opacity: 0;
+            transform: translateX(50px);
+          }
+          10% {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          90% {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          100% {
+            opacity: 0;
+            transform: translateX(-50px);
+          }
+        }
+      `}</style>
 
       <header className="fixed top-7 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50">
         <div className="container mx-auto px-4">
