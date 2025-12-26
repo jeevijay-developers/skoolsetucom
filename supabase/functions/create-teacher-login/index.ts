@@ -105,21 +105,36 @@ serve(async (req) => {
     }
     console.log("Created auth user:", userId);
 
-    // Create user role
-    const { error: roleError } = await supabaseAdmin
+    // Check if user role already exists
+    const { data: existingRole } = await supabaseAdmin
       .from("user_roles")
-      .insert({
-        user_id: userId,
-        role: "teacher",
-        school_id: school_id
-      });
+      .select("id")
+      .eq("user_id", userId)
+      .eq("role", "teacher")
+      .maybeSingle();
 
-    if (roleError) {
-      console.error("Role error:", roleError);
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-      throw new Error(`Failed to create role: ${roleError.message}`);
+    if (!existingRole) {
+      // Create user role only if it doesn't exist
+      const { error: roleError } = await supabaseAdmin
+        .from("user_roles")
+        .insert({
+          user_id: userId,
+          role: "teacher",
+          school_id: school_id
+        });
+
+      if (roleError) {
+        console.error("Role error:", roleError);
+        // Only delete user if we just created them
+        if (!authError) {
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+        }
+        throw new Error(`Failed to create role: ${roleError.message}`);
+      }
+      console.log("Created user role");
+    } else {
+      console.log("User role already exists, skipping");
     }
-    console.log("Created user role");
 
     // Create teacher record
     const { error: teacherError } = await supabaseAdmin
