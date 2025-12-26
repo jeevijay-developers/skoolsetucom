@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +43,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy, Eye, Lock, Upload, User, Download } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy, Eye, Lock, Upload, User, Download, AlertTriangle, School } from "lucide-react";
 import { exportToCSV, formatStudentsForExport } from "@/utils/exportUtils";
 import { toast as sonnerToast } from "sonner";
 
@@ -96,13 +97,17 @@ interface ExamResult {
 }
 
 const Students = () => {
+  const navigate = useNavigate();
   const { schoolId, isSubscriptionActive } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [feeStructures, setFeeStructures] = useState<{ class_id: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterClass, setFilterClass] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+  const [warningMessage, setWarningMessage] = useState({ title: "", description: "", action: "" });
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [creatingLogin, setCreatingLogin] = useState(false);
@@ -137,8 +142,51 @@ const Students = () => {
     if (schoolId) {
       fetchStudents();
       fetchClasses();
+      fetchFeeStructures();
     }
   }, [schoolId]);
+
+  const fetchFeeStructures = async () => {
+    if (!schoolId) return;
+    const { data } = await supabase
+      .from("fee_structures")
+      .select("class_id")
+      .eq("school_id", schoolId);
+    setFeeStructures(data || []);
+  };
+
+  const handleAddStudentClick = () => {
+    // Check if classes exist
+    if (classes.length === 0) {
+      setWarningMessage({
+        title: "No Classes Found",
+        description: "Please add at least one class before adding students. Classes are required to organize students and assign fee structures.",
+        action: "classes"
+      });
+      setWarningDialogOpen(true);
+      return;
+    }
+    
+    // Check if any class has fee structures
+    const classesWithFees = classes.filter(cls => 
+      feeStructures.some(f => f.class_id === cls.id)
+    );
+    
+    if (classesWithFees.length === 0) {
+      setWarningMessage({
+        title: "No Fee Structures Found",
+        description: "Please add fee structures to your classes before adding students. Fee structures are created when you add or manage a class.",
+        action: "classes"
+      });
+      setWarningDialogOpen(true);
+      return;
+    }
+    
+    // All good, open the dialog
+    setEditingStudent(null);
+    resetForm();
+    setIsDialogOpen(true);
+  };
 
   const fetchStudents = async () => {
     if (!schoolId) return;
@@ -609,16 +657,14 @@ const Students = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
+              <Button disabled={!isSubscriptionActive} onClick={handleAddStudentClick}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Student
+              </Button>
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
                 setIsDialogOpen(open);
                 if (!open) resetForm();
               }}>
-                <DialogTrigger asChild>
-                  <Button disabled={!isSubscriptionActive}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Student
-                  </Button>
-                </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
@@ -1379,6 +1425,35 @@ const Students = () => {
                 </Button>
                 <Button onClick={handleChangePassword} disabled={updatingPassword}>
                   {updatingPassword ? "Updating..." : "Update Password"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Warning Dialog for missing classes/fee structures */}
+          <Dialog open={warningDialogOpen} onOpenChange={setWarningDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-warning" />
+                  {warningMessage.title}
+                </DialogTitle>
+                <DialogDescription>
+                  {warningMessage.description}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setWarningDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  setWarningDialogOpen(false);
+                  if (warningMessage.action === "classes") {
+                    navigate("/school-admin/classes");
+                  }
+                }}>
+                  <School className="h-4 w-4 mr-2" />
+                  Go to Classes
                 </Button>
               </DialogFooter>
             </DialogContent>

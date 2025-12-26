@@ -69,9 +69,7 @@ const Fees = () => {
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Fee Structure Dialog
-  const [isStructureDialogOpen, setIsStructureDialogOpen] = useState(false);
-  const [structureForm, setStructureForm] = useState({ name: "", amount: "", frequency: "monthly", class_id: "" });
+  
   
   // View All Dialogs
   const [recentCollectedDialogOpen, setRecentCollectedDialogOpen] = useState(false);
@@ -139,31 +137,6 @@ const Fees = () => {
     setClasses(data || []);
   };
 
-  const handleCreateStructure = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!structureForm.name || !structureForm.amount) {
-      toast.error("Please fill required fields");
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from("fee_structures").insert({
-        school_id: schoolId,
-        name: structureForm.name,
-        amount: parseFloat(structureForm.amount),
-        frequency: structureForm.frequency,
-        class_id: structureForm.class_id || null,
-      });
-
-      if (error) throw error;
-      toast.success("Fee structure created");
-      setIsStructureDialogOpen(false);
-      setStructureForm({ name: "", amount: "", frequency: "monthly", class_id: "" });
-      fetchFeeStructures();
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
 
   const handleRecordPayment = async () => {
     if (!selectedFee || !paymentAmount) {
@@ -723,22 +696,16 @@ const Fees = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Fee Structures Dialog */}
+        {/* Fee Structures Dialog - Read Only */}
         <Dialog open={feeStructuresDialogOpen} onOpenChange={setFeeStructuresDialogOpen}>
           <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <div className="flex items-center justify-between">
-                <DialogTitle>Fee Structures</DialogTitle>
-                <Button size="sm" onClick={() => { setFeeStructuresDialogOpen(false); setIsStructureDialogOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add New
-                </Button>
-              </div>
-              <DialogDescription>Defined fee types for your school</DialogDescription>
+              <DialogTitle>Fee Structures</DialogTitle>
+              <DialogDescription>Fee structures are managed in the Classes section. Go to Classes → Manage → Fee Structures tab.</DialogDescription>
             </DialogHeader>
             {feeStructures.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No fee structures created yet
+                No fee structures created yet. Create classes with fee structures first.
               </div>
             ) : (
               <Table>
@@ -747,7 +714,7 @@ const Fees = () => {
                     <TableHead>Fee Name</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Frequency</TableHead>
-                    <TableHead>Applied To</TableHead>
+                    <TableHead>Class</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -766,74 +733,14 @@ const Fees = () => {
                 </TableBody>
               </Table>
             )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => navigate("/school-admin/classes")}>
+                Manage in Classes
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Create Fee Structure Dialog */}
-        <Dialog open={isStructureDialogOpen} onOpenChange={setIsStructureDialogOpen}>
-          <DialogContent>
-            <form onSubmit={handleCreateStructure}>
-              <DialogHeader>
-                <DialogTitle>Create Fee Structure</DialogTitle>
-                <DialogDescription>Define a new fee type for your school</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <Label>Fee Name *</Label>
-                  <Input
-                    value={structureForm.name}
-                    onChange={(e) => setStructureForm({ ...structureForm, name: e.target.value })}
-                    placeholder="e.g., Tuition Fee, Transport Fee"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Amount (₹) *</Label>
-                    <Input
-                      type="number"
-                      value={structureForm.amount}
-                      onChange={(e) => setStructureForm({ ...structureForm, amount: e.target.value })}
-                      placeholder="5000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Frequency</Label>
-                    <Select value={structureForm.frequency} onValueChange={(v) => setStructureForm({ ...structureForm, frequency: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="yearly">Yearly</SelectItem>
-                        <SelectItem value="one-time">One Time</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Apply to Class (optional)</Label>
-                  <Select value={structureForm.class_id || "all"} onValueChange={(v) => setStructureForm({ ...structureForm, class_id: v === "all" ? "" : v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Classes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Classes</SelectItem>
-                      {classes.map((cls) => (
-                        <SelectItem key={cls.id} value={cls.id}>
-                          {cls.name} {cls.section ? `- ${cls.section}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Create Structure</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
 
         {/* Payment Dialog */}
         <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
