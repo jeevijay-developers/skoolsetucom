@@ -1,12 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Pause, Play } from "lucide-react";
 import logo from "@/assets/skoolsetu-logo.png";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollingNotice, setScrollingNotice] = useState("");
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const educationFacts = [
     "💡 Did you know? India has the world's largest education system with 1.5 million schools!",
@@ -42,14 +45,32 @@ const Header = () => {
   ];
 
   useEffect(() => {
-    let idx = 0;
     setScrollingNotice(educationFacts[0]);
-    const interval = setInterval(() => {
-      idx = (idx + 1) % educationFacts.length;
-      setScrollingNotice(educationFacts[idx]);
-    }, 5000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (isPaused) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      setCurrentIdx((prev) => {
+        const newIdx = (prev + 1) % educationFacts.length;
+        setScrollingNotice(educationFacts[newIdx]);
+        return newIdx;
+      });
+    }, 5000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isPaused]);
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -68,12 +89,23 @@ const Header = () => {
           borderBottom: '2px solid hsl(30, 59%, 35%)',
         }}
       >
+        <button
+          onClick={() => setIsPaused(!isPaused)}
+          className="absolute left-2 p-1 rounded-full hover:bg-white/10 transition-colors"
+          aria-label={isPaused ? "Play" : "Pause"}
+        >
+          {isPaused ? (
+            <Play size={14} className="text-white/80" />
+          ) : (
+            <Pause size={14} className="text-white/80" />
+          )}
+        </button>
         <p 
-          className="font-chalk text-xs md:text-sm tracking-wide text-center px-4"
+          className="font-chalk text-xs md:text-sm tracking-wide text-center px-8"
           style={{ 
             color: 'rgba(255, 255, 255, 0.95)',
             textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
-            animation: 'slideInOut 5s ease-in-out infinite',
+            animation: isPaused ? 'none' : 'slideInOut 5s ease-in-out infinite',
           }}
           key={scrollingNotice}
         >
