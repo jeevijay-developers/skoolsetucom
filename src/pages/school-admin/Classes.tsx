@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye, Download, IndianRupee } from "lucide-react";
 import { exportToCSV, formatClassesForExport } from "@/utils/exportUtils";
 
 interface Class {
@@ -46,6 +46,20 @@ interface Student {
   parent_phone: string | null;
 }
 
+interface FeeStructure {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: string;
+  class_id: string | null;
+}
+
+interface NewFeeStructure {
+  name: string;
+  amount: string;
+  frequency: string;
+}
+
 const Classes = () => {
   const { schoolId } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
@@ -55,12 +69,20 @@ const Classes = () => {
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [formData, setFormData] = useState({ name: "", section: "", academic_year: "2024-25" });
   
+  // Fee structures for class creation
+  const [newFeeStructures, setNewFeeStructures] = useState<NewFeeStructure[]>([]);
+  const [newFeeForm, setNewFeeForm] = useState<NewFeeStructure>({ name: "", amount: "", frequency: "monthly" });
+  
   // Manage class dialog
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
+  const [classFeeStructures, setClassFeeStructures] = useState<FeeStructure[]>([]);
   const [classTeacher, setClassTeacher] = useState<string>("");
   const [loadingManage, setLoadingManage] = useState(false);
+  
+  // Add fee structure to class in manage dialog
+  const [manageFeeForm, setManageFeeForm] = useState<NewFeeStructure>({ name: "", amount: "", frequency: "monthly" });
   
   // Add subject to class
   const [selectedSubjectToAdd, setSelectedSubjectToAdd] = useState("");
@@ -68,6 +90,9 @@ const Classes = () => {
   
   // Student counts
   const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
+  
+  // Fee structure counts
+  const [feeStructureCounts, setFeeStructureCounts] = useState<Record<string, number>>({});
   
   // View students dialog
   const [studentsDialogOpen, setStudentsDialogOpen] = useState(false);
@@ -99,6 +124,7 @@ const Classes = () => {
       fetchClasses();
       fetchTeachers();
       fetchStudentCounts();
+      fetchFeeStructureCounts();
     }
   }, [schoolId]);
 
@@ -140,6 +166,23 @@ const Classes = () => {
     }
   };
 
+  const fetchFeeStructureCounts = async () => {
+    const { data } = await supabase
+      .from("fee_structures")
+      .select("class_id")
+      .eq("school_id", schoolId);
+    
+    if (data) {
+      const counts: Record<string, number> = {};
+      data.forEach(f => {
+        if (f.class_id) {
+          counts[f.class_id] = (counts[f.class_id] || 0) + 1;
+        }
+      });
+      setFeeStructureCounts(counts);
+    }
+  };
+
   const fetchClassStudents = async (classId: string) => {
     setLoadingStudents(true);
     const { data } = await supabase
@@ -169,9 +212,7 @@ const Classes = () => {
       .eq("class_id", classId)
       .eq("school_id", schoolId);
     
-    // We need to also fetch subject names from subjects table for existing entries
-    // But since we're transitioning, we'll store subject_name directly going forward
-    // For now, get subjects to map IDs to names
+    // Get subjects to map IDs to names
     const { data: subjectsData } = await supabase
       .from("subjects")
       .select("id, name")
@@ -188,11 +229,34 @@ const Classes = () => {
     
     setClassSubjects(mappedSubjects);
     
+    // Fetch fee structures for this class
+    const { data: feeData } = await supabase
+      .from("fee_structures")
+      .select("*")
+      .eq("school_id", schoolId)
+      .eq("class_id", classId)
+      .order("name");
+    
+    setClassFeeStructures(feeData || []);
+    
     // Get class teacher
     const cls = classes.find(c => c.id === classId);
     setClassTeacher(cls?.class_teacher_id || "_none");
     
     setLoadingManage(false);
+  };
+
+  const handleAddFeeToNewClass = () => {
+    if (!newFeeForm.name.trim() || !newFeeForm.amount) {
+      toast.error("Please enter fee name and amount");
+      return;
+    }
+    setNewFeeStructures([...newFeeStructures, { ...newFeeForm }]);
+    setNewFeeForm({ name: "", amount: "", frequency: "monthly" });
+  };
+
+  const handleRemoveFeeFromNewClass = (index: number) => {
+    setNewFeeStructures(newFeeStructures.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,31 +265,67 @@ const Classes = () => {
       toast.error("Please enter class name");
       return;
     }
+    
+    // Require at least one fee structure for new classes
+    if (!editingClass && newFeeStructures.length === 0) {
+      toast.error("Please add at least one fee structure for this class");
+      return;
+    }
+    
     try {
       if (editingClass) {
         await supabase.from("classes").update(formData).eq("id", editingClass.id);
         toast.success("Class updated");
       } else {
-        await supabase.from("classes").insert({ ...formData, school_id: schoolId });
-        toast.success("Class added");
+        // Create class
+        const { data: newClass, error: classError } = await supabase
+          .from("classes")
+          .insert({ ...formData, school_id: schoolId })
+          .select("id")
+          .single();
+        
+        if (classError) throw classError;
+        
+        // Create fee structures for the new class
+        if (newClass && newFeeStructures.length > 0) {
+          const feeStructuresData = newFeeStructures.map(fee => ({
+            school_id: schoolId!,
+            class_id: newClass.id,
+            name: fee.name,
+            amount: parseFloat(fee.amount),
+            frequency: fee.frequency,
+          }));
+          
+          const { error: feeError } = await supabase
+            .from("fee_structures")
+            .insert(feeStructuresData);
+          
+          if (feeError) throw feeError;
+        }
+        
+        toast.success("Class added with fee structures");
       }
       setIsDialogOpen(false);
       setFormData({ name: "", section: "", academic_year: "2024-25" });
+      setNewFeeStructures([]);
       setEditingClass(null);
       fetchClasses();
+      fetchFeeStructureCounts();
     } catch (error: any) {
       toast.error(error.message);
     }
   };
 
   const handleDeleteClass = async (id: string) => {
-    if (!confirm("Are you sure? This will also remove all subject assignments.")) return;
+    if (!confirm("Are you sure? This will also remove all subject assignments and fee structures.")) return;
     try {
       await supabase.from("class_subjects").delete().eq("class_id", id);
       await supabase.from("teacher_classes").delete().eq("class_id", id);
+      await supabase.from("fee_structures").delete().eq("class_id", id);
       await supabase.from("classes").delete().eq("id", id);
       toast.success("Class deleted");
       fetchClasses();
+      fetchFeeStructureCounts();
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -234,6 +334,7 @@ const Classes = () => {
   const openManageDialog = (cls: Class) => {
     setSelectedClass(cls);
     setManageDialogOpen(true);
+    setManageFeeForm({ name: "", amount: "", frequency: "monthly" });
     fetchClassDetails(cls.id);
   };
 
@@ -366,6 +467,40 @@ const Classes = () => {
     }
   };
 
+  const handleAddFeeToClass = async () => {
+    if (!selectedClass || !manageFeeForm.name.trim() || !manageFeeForm.amount) {
+      toast.error("Please enter fee name and amount");
+      return;
+    }
+    
+    try {
+      await supabase.from("fee_structures").insert({
+        school_id: schoolId,
+        class_id: selectedClass.id,
+        name: manageFeeForm.name,
+        amount: parseFloat(manageFeeForm.amount),
+        frequency: manageFeeForm.frequency,
+      });
+      toast.success("Fee structure added");
+      setManageFeeForm({ name: "", amount: "", frequency: "monthly" });
+      fetchClassDetails(selectedClass.id);
+      fetchFeeStructureCounts();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleDeleteFeeStructure = async (feeId: string) => {
+    try {
+      await supabase.from("fee_structures").delete().eq("id", feeId);
+      toast.success("Fee structure removed");
+      if (selectedClass) fetchClassDetails(selectedClass.id);
+      fetchFeeStructureCounts();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   const getClassTeacherName = (classTeacherId: string | null) => {
     if (!classTeacherId) return null;
     return teachers.find(t => t.id === classTeacherId)?.full_name;
@@ -379,7 +514,7 @@ const Classes = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold">Classes</h1>
-              <p className="text-muted-foreground">Manage classes, subjects & teachers</p>
+              <p className="text-muted-foreground">Manage classes, subjects, teachers & fee structures</p>
             </div>
             <div className="flex gap-2">
               <Button 
@@ -397,16 +532,26 @@ const Classes = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) {
+                  setNewFeeStructures([]);
+                  setEditingClass(null);
+                  setFormData({ name: "", section: "", academic_year: "2024-25" });
+                }
+              }}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => { setEditingClass(null); setFormData({ name: "", section: "", academic_year: "2024-25" }); }}>
+                  <Button onClick={() => { setEditingClass(null); setFormData({ name: "", section: "", academic_year: "2024-25" }); setNewFeeStructures([]); }}>
                     <Plus className="h-4 w-4 mr-2" />Add Class
                   </Button>
                 </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
                     <DialogTitle>{editingClass ? "Edit" : "Add"} Class</DialogTitle>
+                    <DialogDescription>
+                      {editingClass ? "Update class details" : "Create a new class with fee structures"}
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="space-y-2">
@@ -417,8 +562,85 @@ const Classes = () => {
                       <Label>Section</Label>
                       <Input value={formData.section} onChange={(e) => setFormData({ ...formData, section: e.target.value })} placeholder="e.g., A" />
                     </div>
+                    
+                    {/* Fee Structures Section - Only for new classes */}
+                    {!editingClass && (
+                      <div className="space-y-3 pt-2 border-t">
+                        <div className="flex items-center gap-2">
+                          <IndianRupee className="h-4 w-4 text-primary" />
+                          <Label className="text-base font-semibold">Fee Structures *</Label>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Add fee structures for this class. At least one is required.
+                        </p>
+                        
+                        {/* Added Fee Structures */}
+                        {newFeeStructures.length > 0 && (
+                          <div className="space-y-2">
+                            {newFeeStructures.map((fee, index) => (
+                              <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                                <div>
+                                  <p className="text-sm font-medium">{fee.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    ₹{parseFloat(fee.amount).toLocaleString()} • {fee.frequency}
+                                  </p>
+                                </div>
+                                <Button 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleRemoveFeeFromNewClass(index)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Add Fee Form */}
+                        <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
+                          <div className="space-y-2">
+                            <Label className="text-sm">Fee Name</Label>
+                            <Input 
+                              value={newFeeForm.name} 
+                              onChange={(e) => setNewFeeForm({ ...newFeeForm, name: e.target.value })} 
+                              placeholder="e.g., Tuition Fee" 
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label className="text-sm">Amount (₹)</Label>
+                              <Input 
+                                type="number" 
+                                value={newFeeForm.amount} 
+                                onChange={(e) => setNewFeeForm({ ...newFeeForm, amount: e.target.value })} 
+                                placeholder="5000" 
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm">Frequency</Label>
+                              <Select value={newFeeForm.frequency} onValueChange={(v) => setNewFeeForm({ ...newFeeForm, frequency: v })}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="monthly">Monthly</SelectItem>
+                                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                                  <SelectItem value="yearly">Yearly</SelectItem>
+                                  <SelectItem value="one-time">One Time</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <Button type="button" variant="outline" size="sm" onClick={handleAddFeeToNewClass} className="w-full">
+                            <Plus className="h-4 w-4 mr-1" />Add Fee Structure
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <DialogFooter><Button type="submit">{editingClass ? "Update" : "Add"}</Button></DialogFooter>
+                  <DialogFooter><Button type="submit">{editingClass ? "Update" : "Add Class"}</Button></DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
@@ -443,6 +665,7 @@ const Classes = () => {
               {classes.map((cls) => {
                 const classTeacherName = getClassTeacherName(cls.class_teacher_id);
                 const studentCount = studentCounts[cls.id] || 0;
+                const feeCount = feeStructureCounts[cls.id] || 0;
                 return (
                   <Card key={cls.id} className="shadow-card hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
@@ -463,7 +686,7 @@ const Classes = () => {
                         </Button>
                       </div>
 
-                      {/* Student Count & Class Teacher */}
+                      {/* Student Count, Class Teacher & Fee Structures */}
                       <div className="grid grid-cols-2 gap-2 mb-3">
                         <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
                           <Users className="h-4 w-4 text-primary" />
@@ -472,15 +695,21 @@ const Classes = () => {
                           </span>
                         </div>
                         <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                          <UserCheck className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm truncate">
-                            {classTeacherName ? (
-                              <span className="font-medium">{classTeacherName}</span>
-                            ) : (
-                              <span className="text-muted-foreground">No CT</span>
-                            )}
+                          <IndianRupee className="h-4 w-4 text-secondary" />
+                          <span className="text-sm">
+                            <span className="font-semibold">{feeCount}</span> Fees
                           </span>
                         </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 mb-3">
+                        <UserCheck className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm truncate">
+                          {classTeacherName ? (
+                            <span className="font-medium">{classTeacherName}</span>
+                          ) : (
+                            <span className="text-muted-foreground">No CT</span>
+                          )}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-2 pt-2 border-t">
@@ -515,12 +744,15 @@ const Classes = () => {
                 <div className="py-8 text-center">Loading...</div>
               ) : (
                 <Tabs defaultValue="class-teacher" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="class-teacher">
                       <GraduationCap className="h-4 w-4 mr-2" />Class Teacher
                     </TabsTrigger>
                     <TabsTrigger value="subjects">
                       <BookOpen className="h-4 w-4 mr-2" />Subjects
+                    </TabsTrigger>
+                    <TabsTrigger value="fees">
+                      <IndianRupee className="h-4 w-4 mr-2" />Fee Structures
                     </TabsTrigger>
                   </TabsList>
 
@@ -646,6 +878,89 @@ const Classes = () => {
                                   size="icon"
                                   className="text-destructive hover:text-destructive"
                                   onClick={() => handleRemoveSubjectFromClass(cs.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </TabsContent>
+
+                  {/* Fee Structures Tab */}
+                  <TabsContent value="fees" className="space-y-4 mt-4">
+                    {/* Add Fee Structure */}
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <h4 className="font-medium mb-3">Add Fee Structure</h4>
+                      <div className="grid gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Fee Name</Label>
+                          <Input 
+                            value={manageFeeForm.name} 
+                            onChange={(e) => setManageFeeForm({ ...manageFeeForm, name: e.target.value })} 
+                            placeholder="e.g., Tuition Fee, Lab Fee" 
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-sm">Amount (₹)</Label>
+                            <Input 
+                              type="number" 
+                              value={manageFeeForm.amount} 
+                              onChange={(e) => setManageFeeForm({ ...manageFeeForm, amount: e.target.value })} 
+                              placeholder="5000" 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm">Frequency</Label>
+                            <Select value={manageFeeForm.frequency} onValueChange={(v) => setManageFeeForm({ ...manageFeeForm, frequency: v })}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                                <SelectItem value="quarterly">Quarterly</SelectItem>
+                                <SelectItem value="yearly">Yearly</SelectItem>
+                                <SelectItem value="one-time">One Time</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <Button onClick={handleAddFeeToClass}>
+                          <Plus className="h-4 w-4 mr-1" />Add Fee Structure
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Fee Structures List */}
+                    {classFeeStructures.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No fee structures for this class yet
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Fee Name</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Frequency</TableHead>
+                            <TableHead className="w-20">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {classFeeStructures.map((fee) => (
+                            <TableRow key={fee.id}>
+                              <TableCell className="font-medium">{fee.name}</TableCell>
+                              <TableCell>₹{fee.amount.toLocaleString()}</TableCell>
+                              <TableCell className="capitalize">{fee.frequency}</TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteFeeStructure(fee.id)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
