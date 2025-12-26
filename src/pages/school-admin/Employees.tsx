@@ -13,7 +13,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Users, UserCheck, UserX } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Users, UserCheck, UserX, Download } from "lucide-react";
+import { exportToCSV, formatEmployeesForExport } from "@/utils/exportUtils";
 
 interface Employee {
   id: string;
@@ -223,10 +224,26 @@ const Employees = () => {
               <h1 className="text-2xl font-bold">Employees</h1>
               <p className="text-muted-foreground">Manage school staff and employees</p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" />Add Employee</Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const data = formatEmployeesForExport(filteredEmployees);
+                  if (exportToCSV(data, "employees")) {
+                    toast.success("Employees exported successfully");
+                  } else {
+                    toast.error("No data to export");
+                  }
+                }}
+                disabled={filteredEmployees.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+                <DialogTrigger asChild>
+                  <Button><Plus className="h-4 w-4 mr-2" />Add Employee</Button>
+                </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
@@ -300,6 +317,7 @@ const Employees = () => {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           {/* Stats */}

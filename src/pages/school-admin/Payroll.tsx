@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, DollarSign, Calendar, CheckCircle, Clock, FileText } from "lucide-react";
+import { Plus, DollarSign, Calendar, CheckCircle, Clock, FileText, Download } from "lucide-react";
 import { format } from "date-fns";
+import { exportToCSV, formatPayrollForExport } from "@/utils/exportUtils";
 
 interface Employee {
   id: string;
@@ -184,31 +185,48 @@ const Payroll = () => {
               <h1 className="text-2xl font-bold">Payroll Management</h1>
               <p className="text-muted-foreground">Generate and manage employee salaries</p>
             </div>
-            <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
-              <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" />Generate Payroll</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Generate Monthly Payroll</DialogTitle>
-                  <DialogDescription>Generate salary records for all active employees</DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    This will create payroll entries for <strong>{employees.length}</strong> active employees for <strong>{MONTHS[selectedMonth - 1]} {selectedYear}</strong>.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Total Base Salary: <strong>₹{employees.reduce((s, e) => s + e.base_salary, 0).toLocaleString()}</strong>
-                  </p>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>Cancel</Button>
-                  <Button onClick={handleGeneratePayroll} disabled={generating}>
-                    {generating ? "Generating..." : "Generate Payroll"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const data = formatPayrollForExport(payroll);
+                  if (exportToCSV(data, `payroll_${MONTHS[selectedMonth - 1]}_${selectedYear}`)) {
+                    toast.success("Payroll exported successfully");
+                  } else {
+                    toast.error("No data to export");
+                  }
+                }}
+                disabled={payroll.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
+                <DialogTrigger asChild>
+                  <Button><Plus className="h-4 w-4 mr-2" />Generate Payroll</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Generate Monthly Payroll</DialogTitle>
+                    <DialogDescription>Generate salary records for all active employees</DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      This will create payroll entries for <strong>{employees.length}</strong> active employees for <strong>{MONTHS[selectedMonth - 1]} {selectedYear}</strong>.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Total Base Salary: <strong>₹{employees.reduce((s, e) => s + e.base_salary, 0).toLocaleString()}</strong>
+                    </p>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>Cancel</Button>
+                    <Button onClick={handleGeneratePayroll} disabled={generating}>
+                      {generating ? "Generating..." : "Generate Payroll"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {/* Stats */}

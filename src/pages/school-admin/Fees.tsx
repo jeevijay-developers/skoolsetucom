@@ -19,6 +19,7 @@ import { downloadFeeReceipt } from "@/utils/pdfGenerator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { exportToCSV, formatFeesForExport } from "@/utils/exportUtils";
 
 interface SchoolInfo {
   name: string;
@@ -377,6 +378,21 @@ const Fees = () => {
               <p className="text-muted-foreground">Overview of fee collection and pending payments</p>
             </div>
             <div className="flex gap-3 flex-wrap">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const data = formatFeesForExport(filteredFees);
+                  if (exportToCSV(data, "fees")) {
+                    toast.success("Fees exported successfully");
+                  } else {
+                    toast.error("No data to export");
+                  }
+                }}
+                disabled={filteredFees.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
               <Button onClick={() => navigate("/school-admin/collect-fee")}>
                 <IndianRupee className="h-4 w-4 mr-2" />
                 Collect Fee
