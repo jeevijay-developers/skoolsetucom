@@ -795,10 +795,11 @@ const Teachers = () => {
               </div>
             ) : selectedTeacher && (
               <Tabs defaultValue="info" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="info">Basic Info</TabsTrigger>
                   <TabsTrigger value="classes">Classes</TabsTrigger>
                   <TabsTrigger value="subjects">Subjects</TabsTrigger>
+                  <TabsTrigger value="auth">Login Access</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="info" className="space-y-4">
@@ -854,17 +855,6 @@ const Teachers = () => {
                     </div>
                   </div>
 
-                  {selectedTeacher.user_id && (
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        onClick={() => setPasswordDialogOpen(true)}
-                      >
-                        <Lock className="h-4 w-4 mr-2" />
-                        Change Password
-                      </Button>
-                    </div>
-                  )}
                 </TabsContent>
 
                 <TabsContent value="classes" className="space-y-4">
@@ -919,6 +909,70 @@ const Teachers = () => {
                           </Badge>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="auth" className="space-y-4">
+                  {selectedTeacher.user_id ? (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-muted/30 rounded-lg border border-primary/20">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Lock className="h-5 w-5 text-primary" />
+                          <h4 className="font-semibold">Teacher Login Credentials</h4>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Login Email</p>
+                            <p className="font-medium">{selectedTeacher.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Login Status</p>
+                            <Badge variant="default" className="mt-1">
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              Active
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">Password Management</CardTitle>
+                          <CardDescription>
+                            Reset or change the teacher's login password
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button
+                            onClick={() => setPasswordDialogOpen(true)}
+                            className="w-full sm:w-auto"
+                          >
+                            <Lock className="h-4 w-4 mr-2" />
+                            Change Password
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          <strong>Note:</strong> Teacher can login using the email above at the main login page.
+                          They will be redirected to the Teacher Dashboard after successful login.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                        <UserX className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h4 className="font-semibold mb-2">No Login Account</h4>
+                      <p className="text-muted-foreground text-sm mb-4">
+                        This teacher doesn't have a login account yet.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        To create login access, edit the teacher and enable "Create Login Account" option.
+                      </p>
                     </div>
                   )}
                 </TabsContent>
