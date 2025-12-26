@@ -60,7 +60,20 @@ serve(async (req) => {
       throw new Error("Missing required fields: email, password, or school_id");
     }
 
-    // Create the auth user with service role (won't affect caller's session)
+    // Check if teacher already exists in teachers table
+    const { data: existingTeacher } = await supabaseAdmin
+      .from("teachers")
+      .select("id, user_id")
+      .eq("email", teacher_data.email)
+      .eq("school_id", school_id)
+      .maybeSingle();
+
+    if (existingTeacher) {
+      throw new Error("A teacher with this email already exists in this school");
+    }
+
+    // Try to create the auth user
+    let userId: string;
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: teacher_data.email,
       password: password,
@@ -69,11 +82,27 @@ serve(async (req) => {
     });
 
     if (authError) {
-      console.error("Auth error:", authError);
-      throw new Error(`Failed to create user: ${authError.message}`);
+      // Check if user already exists in auth
+      if (authError.code === "email_exists") {
+        // Get existing user
+        const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = users?.users?.find(u => u.email === teacher_data.email);
+        
+        if (!existingUser) {
+          throw new Error("User exists but could not be found");
+        }
+        
+        // Update password for existing user
+        await supabaseAdmin.auth.admin.updateUserById(existingUser.id, { password });
+        userId = existingUser.id;
+        console.log("Using existing auth user:", userId);
+      } else {
+        console.error("Auth error:", authError);
+        throw new Error(`Failed to create user: ${authError.message}`);
+      }
+    } else {
+      userId = authData.user.id;
     }
-
-    const userId = authData.user.id;
     console.log("Created auth user:", userId);
 
     // Create user role
