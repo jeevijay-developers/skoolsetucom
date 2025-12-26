@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, ClipboardList, BookOpen, CheckCircle, Pencil, Trash2, Calendar, Clock } from "lucide-react";
+import { Plus, ClipboardList, BookOpen, CheckCircle, Pencil, Trash2, Calendar, Clock, Download } from "lucide-react";
 import { format } from "date-fns";
+import { exportToCSV, formatExamsForExport, formatExamResultsForExport } from "@/utils/exportUtils";
 
 interface Exam {
   id: string;
@@ -376,65 +377,89 @@ const Exams = () => {
               <h1 className="text-2xl font-bold">Exams & Results</h1>
               <p className="text-muted-foreground">Create exams, manage schedules, and publish results</p>
             </div>
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Exam
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Exam</DialogTitle>
-                  <DialogDescription>Add a new examination</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Exam Name *</Label>
-                    <Input
-                      value={examForm.name}
-                      onChange={(e) => setExamForm({ ...examForm, name: e.target.value })}
-                      placeholder="e.g., First Unit Test, Mid-Term Exam"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Exam Type</Label>
-                    <Select value={examForm.exam_type} onValueChange={(v) => setExamForm({ ...examForm, exam_type: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unit_test">Unit Test</SelectItem>
-                        <SelectItem value="midterm">Mid-Term</SelectItem>
-                        <SelectItem value="final">Final Exam</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (selectedExam && results.length > 0) {
+                    const data = formatExamResultsForExport(results);
+                    if (exportToCSV(data, `exam_results_${selectedExam.name}`)) {
+                      toast.success("Exam results exported successfully");
+                    }
+                  } else if (exams.length > 0) {
+                    const data = formatExamsForExport(exams);
+                    if (exportToCSV(data, "exams")) {
+                      toast.success("Exams exported successfully");
+                    }
+                  } else {
+                    toast.error("No data to export");
+                  }
+                }}
+                disabled={exams.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Exam
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Exam</DialogTitle>
+                    <DialogDescription>Add a new examination</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Start Date</Label>
+                      <Label>Exam Name *</Label>
                       <Input
-                        type="date"
-                        value={examForm.start_date}
-                        onChange={(e) => setExamForm({ ...examForm, start_date: e.target.value })}
+                        value={examForm.name}
+                        onChange={(e) => setExamForm({ ...examForm, name: e.target.value })}
+                        placeholder="e.g., First Unit Test, Mid-Term Exam"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>End Date</Label>
-                      <Input
-                        type="date"
-                        value={examForm.end_date}
-                        onChange={(e) => setExamForm({ ...examForm, end_date: e.target.value })}
-                      />
+                      <Label>Exam Type</Label>
+                      <Select value={examForm.exam_type} onValueChange={(v) => setExamForm({ ...examForm, exam_type: v })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unit_test">Unit Test</SelectItem>
+                          <SelectItem value="midterm">Mid-Term</SelectItem>
+                          <SelectItem value="final">Final Exam</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Start Date</Label>
+                        <Input
+                          type="date"
+                          value={examForm.start_date}
+                          onChange={(e) => setExamForm({ ...examForm, start_date: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>End Date</Label>
+                        <Input
+                          type="date"
+                          value={examForm.end_date}
+                          onChange={(e) => setExamForm({ ...examForm, end_date: e.target.value })}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                  <Button onClick={handleCreateExam}>Create Exam</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                    <Button onClick={handleCreateExam}>Create Exam</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {/* Stats */}

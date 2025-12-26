@@ -47,8 +47,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, Trash2, Plus, Megaphone, Users, GraduationCap, UserCog, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Plus, Megaphone, Users, GraduationCap, UserCog, Loader2, Download } from "lucide-react";
 import { format } from "date-fns";
+import { exportToCSV, formatNoticesForExport } from "@/utils/exportUtils";
 
 const noticeSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
@@ -306,11 +307,29 @@ const Notices = () => {
 
           {/* Notices List */}
           <Card className="shadow-card">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Megaphone className="h-5 w-5" />
                 All Notices
               </CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  if (notices && notices.length > 0) {
+                    const data = formatNoticesForExport(notices);
+                    if (exportToCSV(data, "notices")) {
+                      toast({ title: "Notices exported successfully" });
+                    }
+                  } else {
+                    toast({ title: "No data to export", variant: "destructive" });
+                  }
+                }}
+                disabled={!notices || notices.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
             </CardHeader>
             <CardContent>
               {isLoading ? (

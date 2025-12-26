@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye, Download } from "lucide-react";
+import { exportToCSV, formatClassesForExport } from "@/utils/exportUtils";
 
 interface Class {
   id: string;
@@ -380,12 +381,28 @@ const Classes = () => {
               <h1 className="text-2xl font-bold">Classes</h1>
               <p className="text-muted-foreground">Manage classes, subjects & teachers</p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => { setEditingClass(null); setFormData({ name: "", section: "", academic_year: "2024-25" }); }}>
-                  <Plus className="h-4 w-4 mr-2" />Add Class
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const data = formatClassesForExport(classes, studentCounts, teachers);
+                  if (exportToCSV(data, "classes")) {
+                    toast.success("Classes exported successfully");
+                  } else {
+                    toast.error("No data to export");
+                  }
+                }}
+                disabled={classes.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => { setEditingClass(null); setFormData({ name: "", section: "", academic_year: "2024-25" }); }}>
+                    <Plus className="h-4 w-4 mr-2" />Add Class
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
@@ -405,6 +422,7 @@ const Classes = () => {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           {loading ? (

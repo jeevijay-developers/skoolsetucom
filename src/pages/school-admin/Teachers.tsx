@@ -27,7 +27,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap, Phone, Calendar, IndianRupee } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap, Phone, Calendar, IndianRupee, Download } from "lucide-react";
+import { exportToCSV, formatTeachersForExport } from "@/utils/exportUtils";
 
 interface Teacher {
   id: string;
@@ -417,16 +418,32 @@ const Teachers = () => {
               <h1 className="text-2xl font-bold">Teachers</h1>
               <p className="text-muted-foreground">Manage your school's teachers</p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button disabled={!isSubscriptionActive}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Teacher
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const data = formatTeachersForExport(filteredTeachers);
+                  if (exportToCSV(data, "teachers")) {
+                    toast.success("Teachers exported successfully");
+                  } else {
+                    toast.error("No data to export");
+                  }
+                }}
+                disabled={filteredTeachers.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button disabled={!isSubscriptionActive}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Teacher
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
@@ -571,6 +588,7 @@ const Teachers = () => {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           {/* Search */}
