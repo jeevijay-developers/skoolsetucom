@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle } from "lucide-react";
 
 const CTASection = () => {
   const benefits = [
-    "1 Day Free Trial",
+    "14 Days Free Trial",
     "No Credit Card Required",
     "Full Access to All Features",
     "WhatsApp Parent Notifications",
@@ -25,7 +25,7 @@ const CTASection = () => {
           </h2>
           <p className="text-xl text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
             Join 500+ schools already using SkoolSetu. Start your free trial today 
-            and see the difference in just one day.
+            and see the difference in just 14 days.
           </p>
 
           {/* Benefits */}

@@ -243,7 +243,7 @@ const Register = () => {
     <>
       <Helmet>
         <title>Start Free Trial - SkoolSetu</title>
-        <meta name="description" content="Register your school on SkoolSetu and start your 1-day free trial. Complete school management solution for Indian schools." />
+        <meta name="description" content="Register your school on SkoolSetu and start your 14-day free trial. Complete school management solution for Indian schools." />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex">
@@ -262,7 +262,7 @@ const Register = () => {
               <div>
                 <div className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-full text-sm font-semibold mb-4">
                   <Sparkles className="w-4 h-4" />
-                  1-Day Free Trial
+                  14-Day Free Trial
                 </div>
                 <h1 className="text-3xl font-bold mb-4">Start Your Free Trial</h1>
                 <p className="text-lg text-primary-foreground/80">
@@ -673,7 +673,7 @@ const Register = () => {
                   </div>
                   <h2 className="text-2xl font-bold text-foreground mb-2">Welcome to SkoolSetu!</h2>
                   <p className="text-muted-foreground mb-6">
-                    Your 1-day free trial has started. Explore all features with full access.
+                    Your 14-day free trial has started. Explore all features with full access.
                   </p>
 
                   <div className="bg-muted/50 rounded-xl p-6 mb-6 text-left space-y-3">

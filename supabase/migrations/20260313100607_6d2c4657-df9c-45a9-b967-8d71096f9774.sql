@@ -1,0 +1,1 @@
+ALTER TABLE public.subscriptions ALTER COLUMN trial_end_date SET DEFAULT (now() + interval '14 days');
