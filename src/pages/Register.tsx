@@ -673,7 +673,7 @@ const Register = () => {
                   </div>
                   <h2 className="text-2xl font-bold text-foreground mb-2">Welcome to SkoolSetu!</h2>
                   <p className="text-muted-foreground mb-6">
-                    Your 1-day free trial has started. Explore all features with full access.
+                    Your 14-day free trial has started. Explore all features with full access.
                   </p>
 
                   <div className="bg-muted/50 rounded-xl p-6 mb-6 text-left space-y-3">

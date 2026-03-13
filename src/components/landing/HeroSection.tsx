@@ -27,7 +27,7 @@ const HeroSection = () => {
             <div className="flex flex-wrap items-center gap-3">
               <div className="inline-flex items-center gap-2 bg-secondary/10 text-secondary px-4 py-2 rounded-full text-sm font-medium">
                 <CheckCircle size={16} />
-                1 Day Free Trial
+                14 Days Free Trial
               </div>
               <div className="inline-flex items-center gap-2 bg-accent/20 text-accent-foreground px-4 py-2 rounded-full text-sm font-medium">
                 <PenLine size={16} />

@@ -9,7 +9,7 @@ const Header = () => {
   const [scrollingNotice, setScrollingNotice] = useState("");
   const [isPaused, setIsPaused] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const educationFacts = [
     "💡 Did you know? India has the world's largest education system with 1.5 million schools!",
