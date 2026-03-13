@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle } from "lucide-react";
 
 const CTASection = () => {
   const benefits = [
-    "1 Day Free Trial",
+    "14 Days Free Trial",
     "No Credit Card Required",
     "Full Access to All Features",
     "WhatsApp Parent Notifications",
