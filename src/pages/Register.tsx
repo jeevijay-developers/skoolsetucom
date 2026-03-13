@@ -243,7 +243,7 @@ const Register = () => {
     <>
       <Helmet>
         <title>Start Free Trial - SkoolSetu</title>
-        <meta name="description" content="Register your school on SkoolSetu and start your 1-day free trial. Complete school management solution for Indian schools." />
+        <meta name="description" content="Register your school on SkoolSetu and start your 14-day free trial. Complete school management solution for Indian schools." />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex">
