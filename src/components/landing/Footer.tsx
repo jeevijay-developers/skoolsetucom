@@ -33,12 +33,8 @@ const Footer = () => {
 
   return (
     <footer id="contact" className="bg-primary text-primary-foreground relative overflow-hidden">
-      {/* Decorative Background Glow */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -left-24 bottom-0 h-72 w-72 rounded-full bg-primary-foreground/5 blur-3xl" />
-        <div className="absolute left-1/2 bottom-0 h-80 w-80 -translate-x-1/2 rounded-full bg-primary-foreground/5 blur-3xl" />
-        <div className="absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-primary-foreground/5 blur-3xl" />
-      </div>
+      {/* Clean subtle overlay to avoid block artifacts */}
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent to-primary-foreground/5" />
       
       <div className="container mx-auto px-4 py-16 relative z-10">
         <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-12">
