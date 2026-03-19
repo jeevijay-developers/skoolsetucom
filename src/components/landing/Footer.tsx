@@ -2,9 +2,6 @@ import { Link } from "react-router-dom";
 import { Mail, Phone, MapPin, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/skoolsetu-logo.png";
-import teacherLineart from "@/assets/footer-teacher-lineart.png";
-import studentsLineart from "@/assets/footer-students-lineart.png";
-import schoolLineart from "@/assets/footer-school-lineart.png";
 
 const Footer = () => {
   const footerLinks = {
@@ -36,30 +33,8 @@ const Footer = () => {
 
   return (
     <footer id="contact" className="bg-primary text-primary-foreground relative overflow-hidden">
-      {/* Decorative Line Art Background */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Teacher Line Art - Left Side */}
-        <img 
-          src={teacherLineart} 
-          alt="" 
-          className="absolute left-0 bottom-0 w-48 md:w-64 h-auto opacity-[0.06] brightness-0 invert mix-blend-screen"
-          aria-hidden="true"
-        />
-        {/* School Line Art - Center */}
-        <img 
-          src={schoolLineart} 
-          alt="" 
-          className="absolute left-1/2 -translate-x-1/2 bottom-0 w-64 md:w-80 h-auto opacity-[0.05] brightness-0 invert mix-blend-screen"
-          aria-hidden="true"
-        />
-        {/* Students Line Art - Right Side */}
-        <img 
-          src={studentsLineart} 
-          alt="" 
-          className="absolute right-0 bottom-0 w-48 md:w-64 h-auto opacity-[0.06] brightness-0 invert mix-blend-screen"
-          aria-hidden="true"
-        />
-      </div>
+      {/* Clean subtle overlay to avoid block artifacts */}
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent to-primary-foreground/5" />
       
       <div className="container mx-auto px-4 py-16 relative z-10">
         <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-12">
