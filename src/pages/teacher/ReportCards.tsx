@@ -39,6 +39,9 @@ const TeacherReportCards = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentResults, setStudentResults] = useState<ExamResult[]>([]);
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
+  const [teacherStats, setTeacherStats] = useState({
+    avgMarks: 0, passRate: 0, highestScorer: "", lowestScorer: "", totalStudents: 0,
+  });
 
   useEffect(() => {
     if (schoolId) {
