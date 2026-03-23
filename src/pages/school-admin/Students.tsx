@@ -413,7 +413,7 @@ const Students = () => {
         // Insert student and get the ID
         const { data: newStudent, error } = await supabase
           .from("students")
-          .insert(studentData)
+          .insert(studentData as any)
           .select("id")
           .single();
 
