@@ -13,8 +13,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Users, UserCheck, UserX, Download } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Users, UserCheck, UserX, Download, FileUp } from "lucide-react";
 import { exportToCSV, formatEmployeesForExport } from "@/utils/exportUtils";
+import CSVImporter, { ImportConfig } from "@/components/import/CSVImporter";
 
 interface Employee {
   id: string;
