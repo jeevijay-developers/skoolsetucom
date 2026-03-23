@@ -48,6 +48,7 @@ import {
   Receipt,
   Crown,
   ArrowUpCircle,
+  CalendarDays,
 } from "lucide-react";
 import logo from "@/assets/skoolsetu-logo.png";
 import TrialCountdownBanner from "@/components/TrialCountdownBanner";
@@ -89,6 +90,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Notices", url: "/school-admin/notices", icon: Bell },
     { title: "Reports", url: "/school-admin/reports", icon: BarChart3 },
     { title: "Staff Access", url: "/school-admin/staff-access", icon: Users },
+    { title: "Leave Management", url: "/school-admin/leaves", icon: CalendarDays },
     { title: "Subscription", url: "/school-admin/subscription", icon: Crown },
     { title: "Profile", url: "/school-admin/profile", icon: Settings },
   ],
@@ -100,6 +102,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Fee Status", url: "/teacher/fee-status", icon: DollarSign },
     { title: "Report Cards", url: "/teacher/report-cards", icon: FileText },
     { title: "My Payroll", url: "/teacher/payroll", icon: CreditCard },
+    { title: "My Leaves", url: "/teacher/leaves", icon: CalendarDays },
   ],
   student: [
     { title: "Dashboard", url: "/student", icon: Home },

@@ -40,6 +40,7 @@ import Payroll from "./pages/school-admin/Payroll";
 import Greetings from "./pages/school-admin/Greetings";
 import StaffAccess from "./pages/school-admin/StaffAccess";
 import SchoolSubscription from "./pages/school-admin/Subscription";
+import LeaveManagement from "./pages/school-admin/LeaveManagement";
 
 // School Staff pages
 import StaffDashboard from "./pages/school-staff/Dashboard";
@@ -69,6 +70,7 @@ import TeacherStudents from "./pages/teacher/Students";
 import TeacherPayroll from "./pages/teacher/Payroll";
 import TeacherFeeStatus from "./pages/teacher/FeeStatus";
 import TeacherReportCards from "./pages/teacher/ReportCards";
+import TeacherLeaves from "./pages/teacher/Leaves";
 
 const queryClient = new QueryClient();
 
@@ -113,6 +115,7 @@ const App = () => (
               <Route path="/school-admin/greetings" element={<ProtectedRoute allowedRoles={["school_admin"]}><Greetings /></ProtectedRoute>} />
               <Route path="/school-admin/staff-access" element={<ProtectedRoute allowedRoles={["school_admin"]}><StaffAccess /></ProtectedRoute>} />
               <Route path="/school-admin/subscription" element={<ProtectedRoute allowedRoles={["school_admin"]}><SchoolSubscription /></ProtectedRoute>} />
+              <Route path="/school-admin/leaves" element={<ProtectedRoute allowedRoles={["school_admin"]}><LeaveManagement /></ProtectedRoute>} />
 
               {/* School Staff Routes */}
               <Route path="/school-staff" element={<ProtectedRoute allowedRoles={["school_staff"]}><StaffDashboard /></ProtectedRoute>} />
@@ -142,6 +145,7 @@ const App = () => (
               <Route path="/teacher/payroll" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherPayroll /></ProtectedRoute>} />
               <Route path="/teacher/fee-status" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherFeeStatus /></ProtectedRoute>} />
               <Route path="/teacher/report-cards" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherReportCards /></ProtectedRoute>} />
+              <Route path="/teacher/leaves" element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherLeaves /></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
