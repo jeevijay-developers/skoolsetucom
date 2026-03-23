@@ -455,6 +455,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 11. Create default leave types
+    console.log('Creating leave types...')
+    const defaultLeaveTypes = [
+      { name: 'Casual Leave', description: 'For personal or urgent matters', max_days_per_year: 12, is_paid: true },
+      { name: 'Sick Leave', description: 'For illness or medical reasons', max_days_per_year: 10, is_paid: true },
+      { name: 'Earned Leave', description: 'Accumulated privilege leave', max_days_per_year: 15, is_paid: true },
+      { name: 'Maternity Leave', description: 'For maternity purposes', max_days_per_year: 180, is_paid: true },
+      { name: 'Unpaid Leave', description: 'Leave without pay', max_days_per_year: 30, is_paid: false },
+    ]
+
+    const { error: leaveTypeError } = await supabaseAdmin
+      .from('leave_types')
+      .insert(defaultLeaveTypes.map(lt => ({ ...lt, school_id, is_active: true })))
+
+    if (leaveTypeError) {
+      console.error('Leave type error:', leaveTypeError)
+    }
+
     console.log('Trial data seeding completed successfully!')
 
     return new Response(
