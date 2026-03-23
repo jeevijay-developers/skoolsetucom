@@ -48,6 +48,7 @@ import {
   Receipt,
   Crown,
   ArrowUpCircle,
+  CalendarDays,
 } from "lucide-react";
 import logo from "@/assets/skoolsetu-logo.png";
 import TrialCountdownBanner from "@/components/TrialCountdownBanner";
