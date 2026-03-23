@@ -70,6 +70,7 @@ import TeacherStudents from "./pages/teacher/Students";
 import TeacherPayroll from "./pages/teacher/Payroll";
 import TeacherFeeStatus from "./pages/teacher/FeeStatus";
 import TeacherReportCards from "./pages/teacher/ReportCards";
+import TeacherLeaves from "./pages/teacher/Leaves";
 
 const queryClient = new QueryClient();
 
