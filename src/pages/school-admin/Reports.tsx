@@ -12,9 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Calendar, Users, BookOpen, DollarSign, Download, FileText, TrendingUp, AlertCircle } from "lucide-react";
+import { Calendar, Users, BookOpen, DollarSign, Download, FileText, TrendingUp, AlertCircle, BarChart3 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { generateFeeReceiptHTML } from "@/utils/pdfGenerator";
+import {
+  ClassPerformanceChart,
+  SubjectPerformanceChart,
+  PassFailChart,
+  ExamTrendChart,
+  TopPerformersCard,
+} from "@/components/analytics/PerformanceCharts";
 
 interface AttendanceRecord {
   date: string;
