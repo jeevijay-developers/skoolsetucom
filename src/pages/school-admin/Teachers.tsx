@@ -319,6 +319,8 @@ const Teachers = () => {
     } catch (error: any) {
       console.error("Error saving teacher:", error);
       toast.error(error.message || "Failed to save teacher");
+    } finally {
+      setSavingTeacher(false);
     }
   };
 
