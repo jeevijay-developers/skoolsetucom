@@ -136,6 +136,12 @@ const Students = () => {
     date_of_birth: "",
     address: "",
     blood_group: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    emergency_contact_relation: "",
+    medical_notes: "",
+    previous_school: "",
+    nationality: "",
   });
 
   useEffect(() => {
@@ -373,7 +379,7 @@ const Students = () => {
     }
 
     try {
-      const studentData = {
+      const studentData: Record<string, any> = {
         school_id: schoolId!,
         full_name: formData.full_name,
         roll_number: formData.roll_number || null,
@@ -387,6 +393,12 @@ const Students = () => {
         date_of_birth: formData.date_of_birth || null,
         address: formData.address || null,
         blood_group: formData.blood_group || null,
+        emergency_contact_name: formData.emergency_contact_name || null,
+        emergency_contact_phone: formData.emergency_contact_phone || null,
+        emergency_contact_relation: formData.emergency_contact_relation || null,
+        medical_notes: formData.medical_notes || null,
+        previous_school: formData.previous_school || null,
+        nationality: formData.nationality || null,
       };
 
       if (editingStudent) {
@@ -401,7 +413,7 @@ const Students = () => {
         // Insert student and get the ID
         const { data: newStudent, error } = await supabase
           .from("students")
-          .insert(studentData)
+          .insert(studentData as any)
           .select("id")
           .single();
 
@@ -424,7 +436,7 @@ const Students = () => {
     }
   };
 
-  const handleEdit = (student: Student) => {
+  const handleEdit = (student: any) => {
     setEditingStudent(student);
     setFormData({
       full_name: student.full_name,
@@ -439,6 +451,12 @@ const Students = () => {
       date_of_birth: student.date_of_birth || "",
       address: student.address || "",
       blood_group: student.blood_group || "",
+      emergency_contact_name: student.emergency_contact_name || "",
+      emergency_contact_phone: student.emergency_contact_phone || "",
+      emergency_contact_relation: student.emergency_contact_relation || "",
+      medical_notes: student.medical_notes || "",
+      previous_school: student.previous_school || "",
+      nationality: student.nationality || "",
     });
     setIsDialogOpen(true);
   };
@@ -586,6 +604,12 @@ const Students = () => {
       date_of_birth: "",
       address: "",
       blood_group: "",
+      emergency_contact_name: "",
+      emergency_contact_phone: "",
+      emergency_contact_relation: "",
+      medical_notes: "",
+      previous_school: "",
+      nationality: "",
     });
   };
 
@@ -819,43 +843,58 @@ const Students = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="parent_name">Father's Name</Label>
-                          <Input
-                            id="parent_name"
-                            value={formData.parent_name}
-                            onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
-                            placeholder="Father's name"
-                          />
+                          <Input id="parent_name" value={formData.parent_name} onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })} placeholder="Father's name" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="mother_name">Mother's Name</Label>
-                          <Input
-                            id="mother_name"
-                            value={formData.mother_name}
-                            onChange={(e) => setFormData({ ...formData, mother_name: e.target.value })}
-                            placeholder="Mother's name"
-                          />
+                          <Input id="mother_name" value={formData.mother_name} onChange={(e) => setFormData({ ...formData, mother_name: e.target.value })} placeholder="Mother's name" />
                         </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         <div className="space-y-2">
                           <Label htmlFor="parent_phone">Parent Phone</Label>
-                          <Input
-                            id="parent_phone"
-                            value={formData.parent_phone}
-                            onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
-                            placeholder="9876543210"
-                          />
+                          <Input id="parent_phone" value={formData.parent_phone} onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })} placeholder="9876543210" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="parent_email">Parent Email</Label>
-                          <Input
-                            id="parent_email"
-                            type="email"
-                            value={formData.parent_email}
-                            onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
-                            placeholder="parent@email.com"
-                          />
+                          <Input id="parent_email" type="email" value={formData.parent_email} onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })} placeholder="parent@email.com" />
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium mb-3">Emergency Contact</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="emergency_contact_name">Contact Name</Label>
+                          <Input id="emergency_contact_name" value={formData.emergency_contact_name} onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })} placeholder="Emergency contact name" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="emergency_contact_phone">Contact Phone</Label>
+                          <Input id="emergency_contact_phone" value={formData.emergency_contact_phone} onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })} placeholder="Phone number" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="emergency_contact_relation">Relation</Label>
+                          <Input id="emergency_contact_relation" value={formData.emergency_contact_relation} onChange={(e) => setFormData({ ...formData, emergency_contact_relation: e.target.value })} placeholder="e.g., Uncle, Aunt" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium mb-3">Additional Details</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="previous_school">Previous School</Label>
+                          <Input id="previous_school" value={formData.previous_school} onChange={(e) => setFormData({ ...formData, previous_school: e.target.value })} placeholder="Name of previous school" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="nationality">Nationality</Label>
+                          <Input id="nationality" value={formData.nationality} onChange={(e) => setFormData({ ...formData, nationality: e.target.value })} placeholder="Indian" />
+                        </div>
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="medical_notes">Medical Notes</Label>
+                        <Textarea id="medical_notes" value={formData.medical_notes} onChange={(e) => setFormData({ ...formData, medical_notes: e.target.value })} placeholder="Allergies, conditions, medications..." rows={2} />
                       </div>
                     </div>
                   </div>
@@ -967,14 +1006,24 @@ const Students = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewOverview(student)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewOverview(student)}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Quick
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/school-admin/students/${student.id}`)}
+                              >
+                                <User className="h-4 w-4 mr-1" />
+                                Profile
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>

@@ -21,6 +21,8 @@ import AboutJeevijay from "./pages/AboutJeevijay";
 // School Admin pages
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
 import Students from "./pages/school-admin/Students";
+import StudentProfile from "./pages/school-admin/StudentProfile";
+import ClassPromotion from "./pages/school-admin/ClassPromotion";
 import Teachers from "./pages/school-admin/Teachers";
 import Classes from "./pages/school-admin/Classes";
 
@@ -92,6 +94,8 @@ const App = () => (
               {/* School Admin Routes */}
               <Route path="/school-admin" element={<ProtectedRoute allowedRoles={["school_admin"]}><SchoolAdminDashboard /></ProtectedRoute>} />
               <Route path="/school-admin/students" element={<ProtectedRoute allowedRoles={["school_admin"]}><Students /></ProtectedRoute>} />
+              <Route path="/school-admin/students/:id" element={<ProtectedRoute allowedRoles={["school_admin"]}><StudentProfile /></ProtectedRoute>} />
+              <Route path="/school-admin/class-promotion" element={<ProtectedRoute allowedRoles={["school_admin"]}><ClassPromotion /></ProtectedRoute>} />
               <Route path="/school-admin/teachers" element={<ProtectedRoute allowedRoles={["school_admin"]}><Teachers /></ProtectedRoute>} />
               <Route path="/school-admin/classes" element={<ProtectedRoute allowedRoles={["school_admin"]}><Classes /></ProtectedRoute>} />
               

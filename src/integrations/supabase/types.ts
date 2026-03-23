@@ -1055,6 +1055,77 @@ export type Database = {
           },
         ]
       }
+      student_promotions: {
+        Row: {
+          academic_year_from: string
+          academic_year_to: string
+          created_at: string
+          from_class_id: string | null
+          id: string
+          promoted_by: string | null
+          promotion_type: string
+          remarks: string | null
+          school_id: string
+          student_id: string
+          to_class_id: string | null
+        }
+        Insert: {
+          academic_year_from: string
+          academic_year_to: string
+          created_at?: string
+          from_class_id?: string | null
+          id?: string
+          promoted_by?: string | null
+          promotion_type?: string
+          remarks?: string | null
+          school_id: string
+          student_id: string
+          to_class_id?: string | null
+        }
+        Update: {
+          academic_year_from?: string
+          academic_year_to?: string
+          created_at?: string
+          from_class_id?: string | null
+          id?: string
+          promoted_by?: string | null
+          promotion_type?: string
+          remarks?: string | null
+          school_id?: string
+          student_id?: string
+          to_class_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_promotions_from_class_id_fkey"
+            columns: ["from_class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_promotions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_promotions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_promotions_to_class_id_fkey"
+            columns: ["to_class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           address: string | null
@@ -1063,16 +1134,22 @@ export type Database = {
           class_id: string | null
           created_at: string
           date_of_birth: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
           full_name: string
           gender: string | null
           id: string
           is_active: boolean | null
+          medical_notes: string | null
           mother_name: string | null
+          nationality: string | null
           parent_email: string | null
           parent_name: string | null
           parent_phone: string | null
           parent_user_id: string | null
           photo_url: string | null
+          previous_school: string | null
           roll_number: string | null
           school_id: string
           updated_at: string
@@ -1085,16 +1162,22 @@ export type Database = {
           class_id?: string | null
           created_at?: string
           date_of_birth?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           full_name: string
           gender?: string | null
           id?: string
           is_active?: boolean | null
+          medical_notes?: string | null
           mother_name?: string | null
+          nationality?: string | null
           parent_email?: string | null
           parent_name?: string | null
           parent_phone?: string | null
           parent_user_id?: string | null
           photo_url?: string | null
+          previous_school?: string | null
           roll_number?: string | null
           school_id: string
           updated_at?: string
@@ -1107,16 +1190,22 @@ export type Database = {
           class_id?: string | null
           created_at?: string
           date_of_birth?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           full_name?: string
           gender?: string | null
           id?: string
           is_active?: boolean | null
+          medical_notes?: string | null
           mother_name?: string | null
+          nationality?: string | null
           parent_email?: string | null
           parent_name?: string | null
           parent_phone?: string | null
           parent_user_id?: string | null
           photo_url?: string | null
+          previous_school?: string | null
           roll_number?: string | null
           school_id?: string
           updated_at?: string
