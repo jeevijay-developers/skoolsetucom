@@ -103,6 +103,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Report Cards", url: "/teacher/report-cards", icon: FileText },
     { title: "My Payroll", url: "/teacher/payroll", icon: CreditCard },
     { title: "My Leaves", url: "/teacher/leaves", icon: CalendarDays },
+    { title: "Assignments", url: "/teacher/assignments", icon: BookOpen },
   ],
   student: [
     { title: "Dashboard", url: "/student", icon: Home },
@@ -110,6 +111,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Fees", url: "/student/fees", icon: DollarSign },
     { title: "Results", url: "/student/results", icon: BookOpen },
     { title: "Notices", url: "/student/notices", icon: Bell },
+    { title: "Assignments", url: "/student/assignments", icon: ClipboardList },
   ],
 };
 
