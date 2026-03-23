@@ -48,8 +48,49 @@ const TeacherReportCards = () => {
       fetchClasses();
       fetchExams();
       fetchStudents();
+      fetchTeacherStats();
     }
   }, [schoolId]);
+
+  const fetchTeacherStats = async () => {
+    const { data: results } = await supabase
+      .from("exam_results")
+      .select(`
+        obtained_marks, max_marks,
+        students!inner (full_name, school_id)
+      `);
+
+    const filtered = (results || []).filter((r: any) => r.students?.school_id === schoolId);
+    if (filtered.length === 0) return;
+
+    const studentTotals: Record<string, { name: string; total: number; max: number }> = {};
+    let passCount = 0;
+    let totalObtained = 0;
+    let totalMax = 0;
+
+    filtered.forEach((r: any) => {
+      totalObtained += r.obtained_marks;
+      totalMax += r.max_marks;
+      if (r.max_marks > 0 && (r.obtained_marks / r.max_marks) * 100 >= 33) passCount++;
+
+      const name = r.students?.full_name || "Unknown";
+      if (!studentTotals[name]) studentTotals[name] = { name, total: 0, max: 0 };
+      studentTotals[name].total += r.obtained_marks;
+      studentTotals[name].max += r.max_marks;
+    });
+
+    const sorted = Object.values(studentTotals)
+      .map((s) => ({ ...s, pct: s.max > 0 ? (s.total / s.max) * 100 : 0 }))
+      .sort((a, b) => b.pct - a.pct);
+
+    setTeacherStats({
+      avgMarks: totalMax > 0 ? (totalObtained / totalMax) * 100 : 0,
+      passRate: filtered.length > 0 ? (passCount / filtered.length) * 100 : 0,
+      highestScorer: sorted[0]?.name || "",
+      lowestScorer: sorted[sorted.length - 1]?.name || "",
+      totalStudents: sorted.length,
+    });
+  };
 
   useEffect(() => {
     fetchStudents();
