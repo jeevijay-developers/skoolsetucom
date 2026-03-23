@@ -412,6 +412,28 @@ const Teachers = () => {
       teacher.employee_id?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const teacherImportConfig: ImportConfig = {
+    title: "Import Teachers",
+    tableName: "teachers",
+    templateFileName: "teachers_template.csv",
+    templateHeaders: ["Full Name", "Email", "Phone", "Employee ID", "Qualification", "Subjects", "Date of Joining"],
+    templateSampleRows: [
+      ["Amit Kumar", "amit@school.edu", "9876543210", "EMP-001", "M.Sc Mathematics", "Mathematics, Physics", "2022-06-01"],
+      ["Sunita Verma", "sunita@school.edu", "9876543211", "EMP-002", "B.Ed English", "English, Hindi", "2023-01-15"],
+    ],
+    columns: [
+      { csvHeader: "Full Name", dbField: "full_name", required: true },
+      { csvHeader: "Email", dbField: "email" },
+      { csvHeader: "Phone", dbField: "phone" },
+      { csvHeader: "Employee ID", dbField: "employee_id" },
+      { csvHeader: "Qualification", dbField: "qualification" },
+      { csvHeader: "Subjects", dbField: "subjects", transform: (v) => v ? v.split(",").map(s => s.trim()).filter(Boolean) : null },
+      { csvHeader: "Date of Joining", dbField: "date_of_joining", transform: (v) => v || null },
+    ],
+    duplicateCheckField: "email",
+    onSuccess: () => fetchTeachers(),
+  };
+
   return (
     <>
       <Helmet>
