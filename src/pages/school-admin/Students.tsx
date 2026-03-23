@@ -1006,14 +1006,24 @@ const Students = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewOverview(student)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewOverview(student)}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Quick
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/school-admin/students/${student.id}`)}
+                              >
+                                <User className="h-4 w-4 mr-1" />
+                                Profile
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
