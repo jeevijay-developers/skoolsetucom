@@ -586,8 +586,8 @@ const Teachers = () => {
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit">
-                      {editingTeacher ? "Update Teacher" : "Add Teacher"}
+                    <Button type="submit" disabled={savingTeacher}>
+                      {savingTeacher ? "Saving..." : editingTeacher ? "Update Teacher" : "Add Teacher"}
                     </Button>
                   </DialogFooter>
                 </form>
