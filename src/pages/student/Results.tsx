@@ -241,6 +241,33 @@ const StudentResults = () => {
             </Card>
           </div>
 
+          {/* Progress Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <StudentProgressChart
+              data={exams.map((e) => ({
+                examName: e.name.length > 15 ? e.name.substring(0, 15) + "…" : e.name,
+                avgPercentage: e.percentage,
+              }))}
+            />
+            <SubjectStrengthCard
+              data={(() => {
+                const subjectMap: Record<string, { total: number; max: number }> = {};
+                exams.forEach((exam) =>
+                  exam.results.forEach((r) => {
+                    if (!subjectMap[r.subject]) subjectMap[r.subject] = { total: 0, max: 0 };
+                    subjectMap[r.subject].total += r.obtained_marks;
+                    subjectMap[r.subject].max += r.max_marks;
+                  })
+                );
+                return Object.entries(subjectMap).map(([subject, s]) => ({
+                  subject,
+                  avgPercentage: s.max > 0 ? (s.total / s.max) * 100 : 0,
+                  passRate: 0,
+                }));
+              })()}
+            />
+          </div>
+
           {/* Filter and Results */}
           <Card>
             <CardHeader>

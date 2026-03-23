@@ -549,4 +549,188 @@ const Reports = () => {
   );
 };
 
+// Analytics Tab Component
+function AnalyticsTab({ schoolId, classes }: { schoolId: string | null; classes: { id: string; name: string; section: string | null }[] }) {
+  const [loading, setLoading] = useState(false);
+  const [selectedExam, setSelectedExam] = useState<string>("all");
+  const [exams, setExams] = useState<{ id: string; name: string }[]>([]);
+  const [classPerformance, setClassPerformance] = useState<any[]>([]);
+  const [subjectPerformance, setSubjectPerformance] = useState<any[]>([]);
+  const [passFailData, setPassFailData] = useState<any[]>([]);
+  const [examTrends, setExamTrends] = useState<any[]>([]);
+  const [topPerformers, setTopPerformers] = useState<any[]>([]);
+  const [bottomPerformers, setBottomPerformers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (schoolId) {
+      fetchExams();
+      fetchAnalytics();
+    }
+  }, [schoolId]);
+
+  useEffect(() => {
+    if (schoolId) fetchAnalytics();
+  }, [selectedExam]);
+
+  const fetchExams = async () => {
+    const { data } = await supabase
+      .from("exams")
+      .select("id, name")
+      .eq("school_id", schoolId!)
+      .eq("is_published", true)
+      .order("created_at", { ascending: false });
+    setExams(data || []);
+  };
+
+  const fetchAnalytics = async () => {
+    if (!schoolId) return;
+    setLoading(true);
+
+    // Fetch all results with student+class+exam info
+    let query = supabase
+      .from("exam_results")
+      .select(`
+        subject, obtained_marks, max_marks,
+        students!inner (full_name, class_id, classes:class_id (name, section)),
+        exams!inner (id, name, school_id)
+      `);
+
+    if (selectedExam !== "all") {
+      query = query.eq("exam_id", selectedExam);
+    }
+
+    const { data: results } = await query;
+    const filtered = (results || []).filter((r: any) => r.exams?.school_id === schoolId);
+
+    // Class-wise performance
+    const classMap: Record<string, { total: number; max: number; count: number; name: string }> = {};
+    // Subject-wise
+    const subjectMap: Record<string, { total: number; max: number; count: number; passCount: number }> = {};
+    // Student-wise for top/bottom
+    const studentMap: Record<string, { name: string; className: string; total: number; max: number }> = {};
+    // Exam-wise trend
+    const examMap: Record<string, { name: string; total: number; max: number; count: number }> = {};
+
+    let passCount = 0;
+    let totalStudentResults = 0;
+
+    filtered.forEach((r: any) => {
+      const className = r.students?.classes?.name || "Unknown";
+      const section = r.students?.classes?.section || "";
+      const fullClassName = section ? `${className}-${section}` : className;
+      const studentName = r.students?.full_name || "Unknown";
+      const studentId = r.students?.class_id || studentName;
+      const examId = r.exams?.id;
+      const examName = r.exams?.name || "Exam";
+
+      // Class
+      if (!classMap[fullClassName]) classMap[fullClassName] = { total: 0, max: 0, count: 0, name: fullClassName };
+      classMap[fullClassName].total += r.obtained_marks;
+      classMap[fullClassName].max += r.max_marks;
+      classMap[fullClassName].count++;
+
+      // Subject
+      if (!subjectMap[r.subject]) subjectMap[r.subject] = { total: 0, max: 0, count: 0, passCount: 0 };
+      subjectMap[r.subject].total += r.obtained_marks;
+      subjectMap[r.subject].max += r.max_marks;
+      subjectMap[r.subject].count++;
+      if (r.max_marks > 0 && (r.obtained_marks / r.max_marks) * 100 >= 33) subjectMap[r.subject].passCount++;
+
+      // Student
+      const key = `${studentId}_${studentName}`;
+      if (!studentMap[key]) studentMap[key] = { name: studentName, className: fullClassName, total: 0, max: 0 };
+      studentMap[key].total += r.obtained_marks;
+      studentMap[key].max += r.max_marks;
+
+      // Exam trend
+      if (examId && !examMap[examId]) examMap[examId] = { name: examName, total: 0, max: 0, count: 0 };
+      if (examId) {
+        examMap[examId].total += r.obtained_marks;
+        examMap[examId].max += r.max_marks;
+        examMap[examId].count++;
+      }
+
+      // Pass/fail
+      totalStudentResults++;
+      if (r.max_marks > 0 && (r.obtained_marks / r.max_marks) * 100 >= 33) passCount++;
+    });
+
+    setClassPerformance(
+      Object.values(classMap).map((c) => ({
+        className: c.name,
+        avgPercentage: c.max > 0 ? (c.total / c.max) * 100 : 0,
+        studentCount: c.count,
+      }))
+    );
+
+    setSubjectPerformance(
+      Object.entries(subjectMap).map(([subject, s]) => ({
+        subject,
+        avgPercentage: s.max > 0 ? (s.total / s.max) * 100 : 0,
+        passRate: s.count > 0 ? (s.passCount / s.count) * 100 : 0,
+      }))
+    );
+
+    setPassFailData([
+      { name: "Pass", value: passCount },
+      { name: "Fail", value: totalStudentResults - passCount },
+    ]);
+
+    setExamTrends(
+      Object.values(examMap).map((e) => ({
+        examName: e.name.length > 15 ? e.name.substring(0, 15) + "…" : e.name,
+        avgPercentage: e.max > 0 ? (e.total / e.max) * 100 : 0,
+      }))
+    );
+
+    const studentList = Object.values(studentMap)
+      .map((s) => ({ ...s, percentage: s.max > 0 ? (s.total / s.max) * 100 : 0 }))
+      .sort((a, b) => b.percentage - a.percentage);
+
+    setTopPerformers(studentList.slice(0, 5));
+    setBottomPerformers(studentList.slice(-5).reverse());
+
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Select value={selectedExam} onValueChange={setSelectedExam}>
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="All Exams" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Exams</SelectItem>
+            {exams.map((e) => (
+              <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ClassPerformanceChart data={classPerformance} />
+        <SubjectPerformanceChart data={subjectPerformance} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <PassFailChart data={passFailData} />
+        <TopPerformersCard title="Top 5 Performers" performers={topPerformers} icon="top" />
+        <TopPerformersCard title="Bottom 5 Performers" performers={bottomPerformers} icon="bottom" />
+      </div>
+
+      <ExamTrendChart data={examTrends} />
+    </div>
+  );
+}
+
 export default Reports;
