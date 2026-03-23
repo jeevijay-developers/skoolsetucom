@@ -1063,6 +1063,13 @@ const Teachers = () => {
           </DialogContent>
         </Dialog>
       </DashboardLayout>
+
+      <CSVImporter
+        config={teacherImportConfig}
+        schoolId={schoolId || ""}
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+      />
     </>
   );
 };

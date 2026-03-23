@@ -476,6 +476,13 @@ const Employees = () => {
           </Card>
         </div>
       </DashboardLayout>
+
+      <CSVImporter
+        config={employeeImportConfig}
+        schoolId={schoolId || ""}
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+      />
     </>
   );
 };
