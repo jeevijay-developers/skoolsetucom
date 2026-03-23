@@ -430,7 +430,7 @@ const Students = () => {
     }
   };
 
-  const handleEdit = (student: Student) => {
+  const handleEdit = (student: any) => {
     setEditingStudent(student);
     setFormData({
       full_name: student.full_name,
@@ -445,6 +445,12 @@ const Students = () => {
       date_of_birth: student.date_of_birth || "",
       address: student.address || "",
       blood_group: student.blood_group || "",
+      emergency_contact_name: student.emergency_contact_name || "",
+      emergency_contact_phone: student.emergency_contact_phone || "",
+      emergency_contact_relation: student.emergency_contact_relation || "",
+      medical_notes: student.medical_notes || "",
+      previous_school: student.previous_school || "",
+      nationality: student.nationality || "",
     });
     setIsDialogOpen(true);
   };
