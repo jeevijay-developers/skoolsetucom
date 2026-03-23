@@ -47,6 +47,7 @@ import {
   AlertTriangle,
   Receipt,
   Crown,
+  ArrowUpCircle,
 } from "lucide-react";
 import logo from "@/assets/skoolsetu-logo.png";
 import TrialCountdownBanner from "@/components/TrialCountdownBanner";
