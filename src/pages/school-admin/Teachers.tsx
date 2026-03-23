@@ -27,8 +27,9 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap, Phone, Calendar, IndianRupee, Download } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap, Phone, Calendar, IndianRupee, Download, FileUp } from "lucide-react";
 import { exportToCSV, formatTeachersForExport } from "@/utils/exportUtils";
+import CSVImporter, { ImportConfig } from "@/components/import/CSVImporter";
 
 interface Teacher {
   id: string;
