@@ -90,6 +90,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Notices", url: "/school-admin/notices", icon: Bell },
     { title: "Reports", url: "/school-admin/reports", icon: BarChart3 },
     { title: "Staff Access", url: "/school-admin/staff-access", icon: Users },
+    { title: "Leave Management", url: "/school-admin/leaves", icon: CalendarDays },
     { title: "Subscription", url: "/school-admin/subscription", icon: Crown },
     { title: "Profile", url: "/school-admin/profile", icon: Settings },
   ],
