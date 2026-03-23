@@ -229,6 +229,8 @@ const Teachers = () => {
       return;
     }
 
+    if (savingTeacher) return;
+    setSavingTeacher(true);
     try {
       const subjectsArray = formData.subjects
         ? formData.subjects.split(",").map((s) => s.trim()).filter(Boolean)
