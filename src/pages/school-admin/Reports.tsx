@@ -538,6 +538,10 @@ const Reports = () => {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            <TabsContent value="analytics">
+              <AnalyticsTab schoolId={schoolId} classes={classes} />
+            </TabsContent>
           </Tabs>
         </div>
       </DashboardLayout>
