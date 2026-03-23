@@ -43,9 +43,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy, Eye, Lock, Upload, User, Download, AlertTriangle, School } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy, Eye, Lock, Upload, User, Download, AlertTriangle, School, FileUp } from "lucide-react";
 import { exportToCSV, formatStudentsForExport } from "@/utils/exportUtils";
 import { toast as sonnerToast } from "sonner";
+import CSVImporter, { ImportConfig } from "@/components/import/CSVImporter";
 
 interface Student {
   id: string;
