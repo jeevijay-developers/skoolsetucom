@@ -93,6 +93,7 @@ const Teachers = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [savingTeacher, setSavingTeacher] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   useEffect(() => {
     if (schoolId) {
