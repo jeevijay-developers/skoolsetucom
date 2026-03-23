@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, FileText, Download, Eye } from "lucide-react";
+import { TeacherStatsCards } from "@/components/analytics/PerformanceCharts";
 
 interface Student {
   id: string;
