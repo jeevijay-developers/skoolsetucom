@@ -71,6 +71,8 @@ import TeacherPayroll from "./pages/teacher/Payroll";
 import TeacherFeeStatus from "./pages/teacher/FeeStatus";
 import TeacherReportCards from "./pages/teacher/ReportCards";
 import TeacherLeaves from "./pages/teacher/Leaves";
+import TeacherAssignments from "./pages/teacher/Assignments";
+import StudentAssignments from "./pages/student/Assignments";
 
 const queryClient = new QueryClient();
 
