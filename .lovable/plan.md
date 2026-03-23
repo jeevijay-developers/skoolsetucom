@@ -1,39 +1,38 @@
 
 
-## Phase 5: Exams & Analytics Enhancements
+## Phase 6: Bulk Import (without TC Generation)
 
-### What Already Exists
-- Exam CRUD, schedules, marks entry, results viewing, CSV exports, report cards, and basic reports (attendance, results, fees) are all built.
+### Goal
+Allow school admins to bulk-import Students, Teachers, and Employees via CSV file upload.
 
-### What Phase 5 Adds
+### What Was Built
 
-**1. Analytics Dashboard for School Admin** (`/school-admin/reports` — new "Analytics" tab)
-- Class-wise performance bar chart (average % per class per exam)
-- Subject-wise performance breakdown (identify weak/strong subjects)
-- Top 5 and bottom 5 performers per class
-- Pass/fail ratio visualization
-- Exam-over-exam comparison (track trends across Unit Test 1 → 2 → Half Yearly, etc.)
+**1. Reusable CSVImporter Component** (`src/components/import/CSVImporter.tsx`)
+- File upload with drag-and-drop style UI
+- Papa Parse CSV parsing with header detection
+- Preview table with row-level validation and error indicators
+- Batch insert with chunking (50 per batch)
+- Duplicate detection by configurable field
+- Download CSV template with sample data
+- Import summary: imported / skipped / errors
 
-**2. Teacher Performance Insights** (`/teacher/report-cards` — enhance existing)
-- Summary cards: average marks, pass rate, highest/lowest scorer for their classes
-- Subject-wise average across classes the teacher handles
+**2. Student CSV Import** — "Import CSV" button on Students page
+- Auto-resolves class name + section to class_id
+- Duplicate detection by admission number
 
-**3. Student Progress Tracking** (`/student/results` — enhance existing)
-- A simple line/bar chart showing the student's percentage trend across exams
-- Subject-wise strength/weakness indicator
+**3. Teacher CSV Import** — "Import CSV" button on Teachers page
+- Subjects parsed from comma-separated string
+- Duplicate detection by email
 
-### Technical Approach
-- No new database tables needed — all analytics derived from existing `exam_results`, `exams`, `students`, `classes` tables
-- Use **Recharts** (already in dependencies) for chart components
-- Add a new "Analytics" tab in the Reports page with computed aggregations
-- Enhance teacher and student result pages with summary stats and charts
+**4. Employee CSV Import** — "Import CSV" button on Employees page
+- Category normalized to snake_case
+- Duplicate detection by employee code
 
 ### Files Changed
-- `src/pages/school-admin/Reports.tsx` — add Analytics tab with charts
-- `src/pages/teacher/ReportCards.tsx` — add summary stats
-- `src/pages/student/Results.tsx` — add progress chart
-- New component: `src/components/analytics/PerformanceCharts.tsx`
+- New: `src/components/import/CSVImporter.tsx`
+- Edit: `src/pages/school-admin/Students.tsx`
+- Edit: `src/pages/school-admin/Teachers.tsx`
+- Edit: `src/pages/school-admin/Employees.tsx`
+- New dependency: `papaparse` + `@types/papaparse`
 
 ### No Database Migration Required
-All data already exists in `exam_results`, `exams`, `students`, and `classes`.
-
