@@ -379,7 +379,7 @@ const Students = () => {
     }
 
     try {
-      const studentData = {
+      const studentData: Record<string, any> = {
         school_id: schoolId!,
         full_name: formData.full_name,
         roll_number: formData.roll_number || null,
@@ -393,6 +393,12 @@ const Students = () => {
         date_of_birth: formData.date_of_birth || null,
         address: formData.address || null,
         blood_group: formData.blood_group || null,
+        emergency_contact_name: formData.emergency_contact_name || null,
+        emergency_contact_phone: formData.emergency_contact_phone || null,
+        emergency_contact_relation: formData.emergency_contact_relation || null,
+        medical_notes: formData.medical_notes || null,
+        previous_school: formData.previous_school || null,
+        nationality: formData.nationality || null,
       };
 
       if (editingStudent) {
