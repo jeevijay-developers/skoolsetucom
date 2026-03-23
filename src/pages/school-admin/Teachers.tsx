@@ -91,6 +91,7 @@ const Teachers = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [savingTeacher, setSavingTeacher] = useState(false);
 
   useEffect(() => {
     if (schoolId) {
@@ -228,6 +229,8 @@ const Teachers = () => {
       return;
     }
 
+    if (savingTeacher) return;
+    setSavingTeacher(true);
     try {
       const subjectsArray = formData.subjects
         ? formData.subjects.split(",").map((s) => s.trim()).filter(Boolean)
@@ -316,6 +319,8 @@ const Teachers = () => {
     } catch (error: any) {
       console.error("Error saving teacher:", error);
       toast.error(error.message || "Failed to save teacher");
+    } finally {
+      setSavingTeacher(false);
     }
   };
 
@@ -581,8 +586,8 @@ const Teachers = () => {
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit">
-                      {editingTeacher ? "Update Teacher" : "Add Teacher"}
+                    <Button type="submit" disabled={savingTeacher}>
+                      {savingTeacher ? "Saving..." : editingTeacher ? "Update Teacher" : "Add Teacher"}
                     </Button>
                   </DialogFooter>
                 </form>
