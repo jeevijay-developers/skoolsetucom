@@ -388,6 +388,10 @@ const Reports = () => {
               <TabsTrigger value="attendance">Attendance Report</TabsTrigger>
               <TabsTrigger value="results">Results Report</TabsTrigger>
               <TabsTrigger value="fees">Fee Collection Report</TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center gap-1">
+                <BarChart3 className="h-4 w-4" />
+                Analytics
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="attendance" className="space-y-4">
