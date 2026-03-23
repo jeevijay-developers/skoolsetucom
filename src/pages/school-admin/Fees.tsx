@@ -181,11 +181,11 @@ const Fees = () => {
     });
   }, [studentFees, searchQuery, filterClass, filterDate, classes]);
 
-  // Recent collected fees (last 7 days, paid)
+  // Recent collected fees (last 7 days, any fee that received payment)
   const recentCollectedFees = useMemo(() => {
     const sevenDaysAgo = subDays(new Date(), 7);
     return filteredFees.filter(fee => 
-      fee.status === "paid" && 
+      (fee.status === "paid" || fee.status === "partial") && 
       fee.paid_at && 
       new Date(fee.paid_at) >= sevenDaysAgo
     ).slice(0, 5);
@@ -194,22 +194,22 @@ const Fees = () => {
   const allRecentCollectedFees = useMemo(() => {
     const sevenDaysAgo = subDays(new Date(), 7);
     return filteredFees.filter(fee => 
-      fee.status === "paid" && 
+      (fee.status === "paid" || fee.status === "partial") && 
       fee.paid_at && 
       new Date(fee.paid_at) >= sevenDaysAgo
     );
   }, [filteredFees]);
 
-  // Pending fees
+  // Pending fees (including partial — still have balance remaining)
   const pendingFees = useMemo(() => {
-    return filteredFees.filter(fee => fee.status === "pending" || fee.status === "overdue").slice(0, 5);
+    return filteredFees.filter(fee => fee.status === "pending" || fee.status === "overdue" || fee.status === "partial").slice(0, 5);
   }, [filteredFees]);
 
   const allPendingFees = useMemo(() => {
-    return filteredFees.filter(fee => fee.status === "pending" || fee.status === "overdue");
+    return filteredFees.filter(fee => fee.status === "pending" || fee.status === "overdue" || fee.status === "partial");
   }, [filteredFees]);
 
-  // Paid fees (all time)
+  // Fully paid fees (all time)
   const paidFees = useMemo(() => {
     return filteredFees.filter(fee => fee.status === "paid").slice(0, 5);
   }, [filteredFees]);
