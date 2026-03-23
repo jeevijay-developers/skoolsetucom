@@ -463,6 +463,10 @@ const Teachers = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)} disabled={!isSubscriptionActive}>
+                <FileUp className="h-4 w-4 mr-2" />
+                Import CSV
+              </Button>
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
                 setIsDialogOpen(open);
                 if (!open) resetForm();
