@@ -136,6 +136,12 @@ const Students = () => {
     date_of_birth: "",
     address: "",
     blood_group: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    emergency_contact_relation: "",
+    medical_notes: "",
+    previous_school: "",
+    nationality: "",
   });
 
   useEffect(() => {
