@@ -267,6 +267,10 @@ const Employees = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <FileUp className="h-4 w-4 mr-2" />
+                Import CSV
+              </Button>
               <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
                 <DialogTrigger asChild>
                   <Button><Plus className="h-4 w-4 mr-2" />Add Employee</Button>
