@@ -1,43 +1,39 @@
 
 
-## Phase 4: Homework & Assignments (Teacher-Only, No Submissions)
+## Phase 5: Exams & Analytics Enhancements
 
-### Scope
-Teachers create and distribute assignments to students. Students can only **view** assigned homework. No submission, file upload, or grading functionality.
+### What Already Exists
+- Exam CRUD, schedules, marks entry, results viewing, CSV exports, report cards, and basic reports (attendance, results, fees) are all built.
 
-### Database Changes
+### What Phase 5 Adds
 
-**New table: `assignments`**
-- `id` (uuid, PK)
-- `school_id` (uuid, NOT NULL)
-- `class_id` (uuid, NOT NULL)
-- `subject` (text, NOT NULL)
-- `title` (text, NOT NULL)
-- `description` (text)
-- `due_date` (date)
-- `created_by` (uuid) — teacher's user_id
-- `academic_year` (text, default '2024-25')
-- `is_published` (boolean, default true)
-- `created_at` (timestamptz)
+**1. Analytics Dashboard for School Admin** (`/school-admin/reports` — new "Analytics" tab)
+- Class-wise performance bar chart (average % per class per exam)
+- Subject-wise performance breakdown (identify weak/strong subjects)
+- Top 5 and bottom 5 performers per class
+- Pass/fail ratio visualization
+- Exam-over-exam comparison (track trends across Unit Test 1 → 2 → Half Yearly, etc.)
 
-**RLS:**
-- School admins: full access (school-scoped)
-- Teachers: INSERT + UPDATE own assignments (school-scoped)
-- School members: SELECT (school-scoped)
+**2. Teacher Performance Insights** (`/teacher/report-cards` — enhance existing)
+- Summary cards: average marks, pass rate, highest/lowest scorer for their classes
+- Subject-wise average across classes the teacher handles
 
-### New Pages & Routes
+**3. Student Progress Tracking** (`/student/results` — enhance existing)
+- A simple line/bar chart showing the student's percentage trend across exams
+- Subject-wise strength/weakness indicator
 
-1. **`/teacher/assignments`** — Teacher creates assignments: select class, subject, title, description, due date. Lists their created assignments with edit/delete.
+### Technical Approach
+- No new database tables needed — all analytics derived from existing `exam_results`, `exams`, `students`, `classes` tables
+- Use **Recharts** (already in dependencies) for chart components
+- Add a new "Analytics" tab in the Reports page with computed aggregations
+- Enhance teacher and student result pages with summary stats and charts
 
-2. **`/student/assignments`** — Read-only view of assignments for the student's class, sorted by due date, showing subject, title, description, and due date.
+### Files Changed
+- `src/pages/school-admin/Reports.tsx` — add Analytics tab with charts
+- `src/pages/teacher/ReportCards.tsx` — add summary stats
+- `src/pages/student/Results.tsx` — add progress chart
+- New component: `src/components/analytics/PerformanceCharts.tsx`
 
-### Navigation Updates
-- Add "Assignments" to teacher sidebar
-- Add "Assignments" to student sidebar
-
-### What Is Excluded
-- No `assignment_submissions` table
-- No file upload / storage bucket
-- No student submission UI
-- No grading interface
+### No Database Migration Required
+All data already exists in `exam_results`, `exams`, `students`, and `classes`.
 
