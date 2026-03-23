@@ -111,6 +111,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Fees", url: "/student/fees", icon: DollarSign },
     { title: "Results", url: "/student/results", icon: BookOpen },
     { title: "Notices", url: "/student/notices", icon: Bell },
+    { title: "Assignments", url: "/student/assignments", icon: ClipboardList },
   ],
 };
 
