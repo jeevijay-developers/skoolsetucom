@@ -21,6 +21,8 @@ import AboutJeevijay from "./pages/AboutJeevijay";
 // School Admin pages
 import SchoolAdminDashboard from "./pages/school-admin/Dashboard";
 import Students from "./pages/school-admin/Students";
+import StudentProfile from "./pages/school-admin/StudentProfile";
+import ClassPromotion from "./pages/school-admin/ClassPromotion";
 import Teachers from "./pages/school-admin/Teachers";
 import Classes from "./pages/school-admin/Classes";
 
