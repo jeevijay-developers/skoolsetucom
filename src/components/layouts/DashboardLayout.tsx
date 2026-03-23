@@ -102,6 +102,7 @@ const menuItems: Record<string, MenuItem[]> = {
     { title: "Fee Status", url: "/teacher/fee-status", icon: DollarSign },
     { title: "Report Cards", url: "/teacher/report-cards", icon: FileText },
     { title: "My Payroll", url: "/teacher/payroll", icon: CreditCard },
+    { title: "My Leaves", url: "/teacher/leaves", icon: CalendarDays },
   ],
   student: [
     { title: "Dashboard", url: "/student", icon: Home },
