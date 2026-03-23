@@ -40,6 +40,7 @@ import Payroll from "./pages/school-admin/Payroll";
 import Greetings from "./pages/school-admin/Greetings";
 import StaffAccess from "./pages/school-admin/StaffAccess";
 import SchoolSubscription from "./pages/school-admin/Subscription";
+import LeaveManagement from "./pages/school-admin/LeaveManagement";
 
 // School Staff pages
 import StaffDashboard from "./pages/school-staff/Dashboard";
