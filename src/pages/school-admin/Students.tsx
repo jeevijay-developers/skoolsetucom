@@ -43,9 +43,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy, Eye, Lock, Upload, User, Download, AlertTriangle, School } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Key, Copy, Eye, Lock, Upload, User, Download, AlertTriangle, School, FileUp } from "lucide-react";
 import { exportToCSV, formatStudentsForExport } from "@/utils/exportUtils";
 import { toast as sonnerToast } from "sonner";
+import CSVImporter, { ImportConfig } from "@/components/import/CSVImporter";
 
 interface Student {
   id: string;
@@ -123,6 +124,7 @@ const Students = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
     roll_number: "",
@@ -652,6 +654,59 @@ const Students = () => {
     return { totalExams, avgPercentage, totalSubjects };
   };
 
+  const studentImportConfig: ImportConfig = {
+    title: "Import Students",
+    tableName: "students",
+    templateFileName: "students_template.csv",
+    templateHeaders: ["Full Name", "Roll Number", "Admission Number", "Class", "Section", "Gender", "Date of Birth", "Parent Name", "Parent Phone", "Parent Email", "Address", "Blood Group"],
+    templateSampleRows: [
+      ["Rahul Sharma", "101", "ADM-2024-001", "Class 5", "A", "Male", "2013-05-15", "Suresh Sharma", "9876543210", "parent@email.com", "123 Main St", "B+"],
+      ["Priya Patel", "102", "ADM-2024-002", "Class 5", "B", "Female", "2013-08-20", "Ramesh Patel", "9876543211", "", "456 Oak Ave", "O+"],
+    ],
+    columns: [
+      { csvHeader: "Full Name", dbField: "full_name", required: true },
+      { csvHeader: "Roll Number", dbField: "roll_number" },
+      { csvHeader: "Admission Number", dbField: "admission_number" },
+      { csvHeader: "Gender", dbField: "gender" },
+      { csvHeader: "Date of Birth", dbField: "date_of_birth", transform: (v) => v || null },
+      { csvHeader: "Parent Name", dbField: "parent_name" },
+      { csvHeader: "Parent Phone", dbField: "parent_phone" },
+      { csvHeader: "Parent Email", dbField: "parent_email" },
+      { csvHeader: "Address", dbField: "address" },
+      { csvHeader: "Blood Group", dbField: "blood_group" },
+    ],
+    duplicateCheckField: "admission_number",
+    preProcess: async (rows, sid) => {
+      // Resolve class names to class_id
+      const { data: allClasses } = await supabase
+        .from("classes")
+        .select("id, name, section")
+        .eq("school_id", sid);
+
+      return rows.map(row => {
+        const rawClass = (row as any)["__csv_class"] || "";
+        const rawSection = (row as any)["__csv_section"] || "A";
+        const match = allClasses?.find(c =>
+          c.name.toLowerCase() === rawClass.toLowerCase() &&
+          (c.section || "A").toLowerCase() === rawSection.toLowerCase()
+        );
+        const { __csv_class, __csv_section, ...rest } = row as any;
+        return { ...rest, class_id: match?.id || null };
+      });
+    },
+    onSuccess: () => fetchStudents(),
+  };
+
+  // Augment columns to keep raw CSV class/section for preProcess
+  const studentImportConfigWithClass: ImportConfig = {
+    ...studentImportConfig,
+    columns: [
+      ...studentImportConfig.columns,
+      { csvHeader: "Class", dbField: "__csv_class" },
+      { csvHeader: "Section", dbField: "__csv_section" },
+    ],
+  };
+
   return (
     <>
       <Helmet>
@@ -680,6 +735,10 @@ const Students = () => {
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
+              </Button>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)} disabled={!isSubscriptionActive}>
+                <FileUp className="h-4 w-4 mr-2" />
+                Import CSV
               </Button>
               <Button disabled={!isSubscriptionActive} onClick={handleAddStudentClick}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -1509,6 +1568,13 @@ const Students = () => {
           </Dialog>
         </div>
       </DashboardLayout>
+
+      <CSVImporter
+        config={studentImportConfigWithClass}
+        schoolId={schoolId || ""}
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+      />
     </>
   );
 };

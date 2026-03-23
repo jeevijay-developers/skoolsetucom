@@ -27,8 +27,9 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap, Phone, Calendar, IndianRupee, Download } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap, Phone, Calendar, IndianRupee, Download, FileUp } from "lucide-react";
 import { exportToCSV, formatTeachersForExport } from "@/utils/exportUtils";
+import CSVImporter, { ImportConfig } from "@/components/import/CSVImporter";
 
 interface Teacher {
   id: string;
@@ -92,6 +93,7 @@ const Teachers = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [savingTeacher, setSavingTeacher] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   useEffect(() => {
     if (schoolId) {
@@ -410,6 +412,28 @@ const Teachers = () => {
       teacher.employee_id?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const teacherImportConfig: ImportConfig = {
+    title: "Import Teachers",
+    tableName: "teachers",
+    templateFileName: "teachers_template.csv",
+    templateHeaders: ["Full Name", "Email", "Phone", "Employee ID", "Qualification", "Subjects", "Date of Joining"],
+    templateSampleRows: [
+      ["Amit Kumar", "amit@school.edu", "9876543210", "EMP-001", "M.Sc Mathematics", "Mathematics, Physics", "2022-06-01"],
+      ["Sunita Verma", "sunita@school.edu", "9876543211", "EMP-002", "B.Ed English", "English, Hindi", "2023-01-15"],
+    ],
+    columns: [
+      { csvHeader: "Full Name", dbField: "full_name", required: true },
+      { csvHeader: "Email", dbField: "email" },
+      { csvHeader: "Phone", dbField: "phone" },
+      { csvHeader: "Employee ID", dbField: "employee_id" },
+      { csvHeader: "Qualification", dbField: "qualification" },
+      { csvHeader: "Subjects", dbField: "subjects", transform: (v) => v ? v.split(",").map(s => s.trim()).filter(Boolean) : null },
+      { csvHeader: "Date of Joining", dbField: "date_of_joining", transform: (v) => v || null },
+    ],
+    duplicateCheckField: "email",
+    onSuccess: () => fetchTeachers(),
+  };
+
   return (
     <>
       <Helmet>
@@ -438,6 +462,10 @@ const Teachers = () => {
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
+              </Button>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)} disabled={!isSubscriptionActive}>
+                <FileUp className="h-4 w-4 mr-2" />
+                Import CSV
               </Button>
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
                 setIsDialogOpen(open);
@@ -1035,6 +1063,13 @@ const Teachers = () => {
           </DialogContent>
         </Dialog>
       </DashboardLayout>
+
+      <CSVImporter
+        config={teacherImportConfig}
+        schoolId={schoolId || ""}
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+      />
     </>
   );
 };

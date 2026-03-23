@@ -13,8 +13,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Users, UserCheck, UserX, Download } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Users, UserCheck, UserX, Download, FileUp } from "lucide-react";
 import { exportToCSV, formatEmployeesForExport } from "@/utils/exportUtils";
+import CSVImporter, { ImportConfig } from "@/components/import/CSVImporter";
 
 interface Employee {
   id: string;
@@ -49,6 +50,7 @@ const Employees = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
     full_name: "",
@@ -214,6 +216,31 @@ const Employees = () => {
 
   const totalSalary = employees.filter(e => e.is_active).reduce((sum, e) => sum + e.base_salary, 0);
 
+  const employeeImportConfig: ImportConfig = {
+    title: "Import Employees",
+    tableName: "employees",
+    templateFileName: "employees_template.csv",
+    templateHeaders: ["Full Name", "Category", "Employee Code", "Phone", "Email", "Base Salary", "Date of Joining", "Bank Name", "Bank Account", "IFSC Code"],
+    templateSampleRows: [
+      ["Rajesh Singh", "ground_staff", "EMP-010", "9876543210", "rajesh@school.edu", "15000", "2023-04-01", "SBI", "1234567890", "SBIN0001234"],
+      ["Meena Devi", "admin_staff", "EMP-011", "9876543211", "meena@school.edu", "20000", "2022-08-15", "PNB", "0987654321", "PUNB0001234"],
+    ],
+    columns: [
+      { csvHeader: "Full Name", dbField: "full_name", required: true },
+      { csvHeader: "Category", dbField: "category", transform: (v) => v?.toLowerCase().replace(/ /g, "_") || "other" },
+      { csvHeader: "Employee Code", dbField: "employee_code" },
+      { csvHeader: "Phone", dbField: "phone" },
+      { csvHeader: "Email", dbField: "email" },
+      { csvHeader: "Base Salary", dbField: "base_salary", transform: (v) => parseFloat(v) || 0 },
+      { csvHeader: "Date of Joining", dbField: "date_of_joining", transform: (v) => v || null },
+      { csvHeader: "Bank Name", dbField: "bank_name" },
+      { csvHeader: "Bank Account", dbField: "bank_account" },
+      { csvHeader: "IFSC Code", dbField: "ifsc_code" },
+    ],
+    duplicateCheckField: "employee_code",
+    onSuccess: () => fetchEmployees(),
+  };
+
   return (
     <>
       <Helmet><title>Employees - SkoolSetu</title></Helmet>
@@ -239,6 +266,10 @@ const Employees = () => {
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
+              </Button>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <FileUp className="h-4 w-4 mr-2" />
+                Import CSV
               </Button>
               <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
                 <DialogTrigger asChild>
@@ -445,6 +476,13 @@ const Employees = () => {
           </Card>
         </div>
       </DashboardLayout>
+
+      <CSVImporter
+        config={employeeImportConfig}
+        schoolId={schoolId || ""}
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+      />
     </>
   );
 };
