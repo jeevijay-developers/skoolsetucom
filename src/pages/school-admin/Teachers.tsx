@@ -91,6 +91,7 @@ const Teachers = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [savingTeacher, setSavingTeacher] = useState(false);
 
   useEffect(() => {
     if (schoolId) {
