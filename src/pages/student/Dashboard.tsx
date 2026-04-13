@@ -68,12 +68,6 @@ interface ClassTeacher {
   email: string | null;
 }
 
-interface SubjectTeacher {
-  subject_name: string;
-  teacher_name: string;
-  teacher_phone: string | null;
-}
-
 const StudentDashboard = () => {
   const { user } = useAuth();
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
@@ -84,7 +78,6 @@ const StudentDashboard = () => {
   const [upcomingExams, setUpcomingExams] = useState<UpcomingExam[]>([]);
   const [nextExam, setNextExam] = useState<UpcomingExam | null>(null);
   const [classTeacher, setClassTeacher] = useState<ClassTeacher | null>(null);
-  const [subjectTeachers, setSubjectTeachers] = useState<SubjectTeacher[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -242,25 +235,6 @@ const StudentDashboard = () => {
             });
           }
 
-          // Fetch subject teachers
-          const { data: subjectTeachersData } = await supabase
-            .from("class_subjects")
-            .select(`
-              subjects:subject_id (name),
-              teachers:teacher_id (full_name, phone)
-            `)
-            .eq("class_id", studentData.class_id);
-
-          if (subjectTeachersData) {
-            const teachers = subjectTeachersData
-              .filter((st) => st.teachers && st.subjects)
-              .map((st) => ({
-                subject_name: (st.subjects as any)?.name || "Unknown",
-                teacher_name: (st.teachers as any)?.full_name || "Not Assigned",
-                teacher_phone: (st.teachers as any)?.phone || null,
-              }));
-            setSubjectTeachers(teachers);
-          }
         }
       }
 
@@ -407,40 +381,6 @@ const StudentDashboard = () => {
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-center py-4">No class teacher assigned</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Subject Teachers Card */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">Your Subject Teachers</CardTitle>
-                    <CardDescription>Teachers for each subject</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {subjectTeachers.length > 0 ? (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {subjectTeachers.map((st, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-secondary/30 rounded-lg">
-                        <div>
-                          <p className="font-medium">{st.subject_name}</p>
-                          <p className="text-sm text-muted-foreground">{st.teacher_name}</p>
-                        </div>
-                        {st.teacher_phone && (
-                          <span className="text-xs text-muted-foreground">📞 {st.teacher_phone}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-4">No subject teachers assigned</p>
                 )}
               </CardContent>
             </Card>
