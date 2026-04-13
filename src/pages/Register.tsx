@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { ArrowLeft, School, User, CheckCircle, Sparkles, Shield, Users, Crown, IndianRupee } from "lucide-react";
 import logo from "@/assets/skoolsetu-logo.png";
@@ -36,6 +37,7 @@ const isValidPhone = (phone: string) => {
 
 const Register = () => {
   const navigate = useNavigate();
+  const { refreshUserData } = useAuth();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -71,6 +73,29 @@ const Register = () => {
       setStudentCount(selectedStudents.toString());
     }
   }, [selectedStudents]);
+
+  const waitForRoleAssignment = async (userId: string) => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Role verification error:", error);
+        return false;
+      }
+
+      if (data) {
+        return true;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
+    }
+
+    return false;
+  };
 
   const validateStep1 = () => {
     if (!schoolName.trim()) {
@@ -194,35 +219,57 @@ const Register = () => {
 
       if (regError) {
         console.error("Registration error:", regError);
-        toast.error("School setup incomplete. Please complete registration after logging in.");
-        navigate("/complete-registration");
-        setLoading(false);
+        toast.error("We couldn't finish setting up your school. Please try again.");
         return;
       }
 
-      // 3. Update subscription with pricing data
       const schoolId = (regData as any)?.school_id;
-      if (schoolId) {
-        await supabase
-          .from("subscriptions")
-          .update({
-            plan: selectedPlan as "basic" | "pro",
-            billing_cycle: selectedBilling,
-            student_count: parseInt(studentCount) || selectedStudents
-          })
-          .eq("school_id", schoolId);
+      const backgroundTasks = await Promise.allSettled([
+        schoolId
+          ? supabase
+              .from("subscriptions")
+              .update({
+                plan: selectedPlan as "basic" | "pro",
+                billing_cycle: selectedBilling,
+                student_count: parseInt(studentCount) || selectedStudents,
+              })
+              .eq("school_id", schoolId)
+          : Promise.resolve({ error: null }),
+        adminPhone
+          ? supabase
+              .from("profiles")
+              .update({ phone: adminPhone })
+              .eq("id", authData.user.id)
+          : Promise.resolve({ error: null }),
+        schoolId
+          ? supabase.functions.invoke("seed-trial-data", {
+              body: { school_id: schoolId },
+            })
+          : Promise.resolve({ error: null }),
+      ]);
+
+      backgroundTasks.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.error(`Post-registration task ${index + 1} failed:`, result.reason);
+          return;
+        }
+
+        if (result.value?.error) {
+          console.error(`Post-registration task ${index + 1} failed:`, result.value.error);
+        }
+      });
+
+      const roleAssigned = await waitForRoleAssignment(authData.user.id);
+
+      if (!roleAssigned) {
+        toast.error("Your account setup is taking longer than expected. Please sign in again in a moment.");
+        navigate("/login", { replace: true });
+        return;
       }
 
-      // 4. Update profile with phone (optional, non-critical)
-      if (adminPhone) {
-        await supabase
-          .from("profiles")
-          .update({ phone: adminPhone })
-          .eq("id", authData.user.id);
-      }
-
-      toast.success("Registration successful! Welcome to SkoolSetu.");
-      setStep(3);
+      await refreshUserData();
+      toast.success("Registration successful! Redirecting to your dashboard...");
+      navigate("/school-admin", { replace: true });
       
     } catch (error) {
       console.error("Registration error:", error);
@@ -356,11 +403,10 @@ const Register = () => {
           {/* Progress Steps */}
           <div className="px-6 py-4">
             <div className="max-w-2xl mx-auto flex items-center justify-center gap-4">
-              {[
-                { num: 1, label: "School Details" },
-                { num: 2, label: "Admin Account" },
-                { num: 3, label: "Complete" }
-              ].map((s, i) => (
+                {[
+                  { num: 1, label: "School Details" },
+                  { num: 2, label: "Admin Account" },
+                ].map((s, i, steps) => (
                 <div key={s.num} className="flex items-center gap-2">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
                     step >= s.num 
@@ -374,7 +420,7 @@ const Register = () => {
                   <span className={`hidden sm:inline text-sm font-medium ${
                     step >= s.num ? "text-foreground" : "text-muted-foreground"
                   }`}>{s.label}</span>
-                  {i < 2 && <div className="w-8 h-0.5 bg-border mx-2" />}
+                    {i < steps.length - 1 && <div className="w-8 h-0.5 bg-border mx-2" />}
                 </div>
               ))}
             </div>
@@ -665,48 +711,6 @@ const Register = () => {
                 </div>
               )}
 
-              {/* Step 3: Success */}
-              {step === 3 && (
-                <div className="bg-card rounded-2xl shadow-card border border-border p-8 text-center">
-                  <div className="mx-auto w-20 h-20 bg-secondary/10 rounded-full flex items-center justify-center mb-6">
-                    <CheckCircle className="h-10 w-10 text-secondary" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground mb-2">Welcome to SkoolSetu!</h2>
-                  <p className="text-muted-foreground mb-6">
-                    Your 14-day free trial has started. Explore all features with full access.
-                  </p>
-
-                  <div className="bg-muted/50 rounded-xl p-6 mb-6 text-left space-y-3">
-                    <h3 className="font-semibold">What's Next?</h3>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-secondary">1</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Add your classes and sections</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-secondary">2</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Register students and teachers</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-secondary">3</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Set up fee structures</p>
-                    </div>
-                  </div>
-
-                  <Button 
-                    size="lg" 
-                    className="w-full h-12 font-semibold"
-                    onClick={() => navigate("/school-admin")}
-                  >
-                    Go to Dashboard
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         </div>
