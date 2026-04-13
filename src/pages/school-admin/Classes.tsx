@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye, Download, IndianRupee, PlusCircle } from "lucide-react";
+import { Plus, Minus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye, Download, IndianRupee } from "lucide-react";
 import { exportToCSV, formatClassesForExport } from "@/utils/exportUtils";
 
 interface Class {
@@ -546,6 +546,32 @@ const Classes = () => {
     }
   };
 
+  const handleRemoveSection = async (className: string) => {
+    const existing = groupedClasses[className] || [];
+    if (existing.length <= 1) {
+      toast.error("Cannot remove the last section");
+      return;
+    }
+    const lastSection = existing[existing.length - 1];
+    const studentCount = studentCounts[lastSection.id] || 0;
+    if (studentCount > 0) {
+      toast.error(`Cannot remove section ${className}-${lastSection.section || "A"} — it has ${studentCount} student(s)`);
+      return;
+    }
+    if (!confirm(`Remove section ${className}-${lastSection.section || "A"}?`)) return;
+    try {
+      await supabase.from("class_subjects").delete().eq("class_id", lastSection.id);
+      await supabase.from("teacher_classes").delete().eq("class_id", lastSection.id);
+      await supabase.from("fee_structures").delete().eq("class_id", lastSection.id);
+      await supabase.from("classes").delete().eq("id", lastSection.id);
+      toast.success(`Section ${className}-${lastSection.section || "A"} removed`);
+      fetchClasses();
+      fetchFeeStructureCounts();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   return (
     <>
       <Helmet><title>Classes - SkoolSetu</title></Helmet>
@@ -706,10 +732,15 @@ const Classes = () => {
                 <div key={className}>
                   <div className="flex items-center gap-2 mb-3">
                     <h3 className="text-lg font-semibold">{className}</h3>
-                    <Badge variant="secondary">{sections.length} section{sections.length > 1 ? "s" : ""}</Badge>
-                    <Button variant="ghost" size="sm" onClick={() => handleAddSection(className)} className="text-primary">
-                      <PlusCircle className="h-4 w-4 mr-1" />Add Section
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleRemoveSection(className)} disabled={sections.length <= 1}>
+                        <Minus className="h-3.5 w-3.5" />
+                      </Button>
+                      <Badge variant="secondary" className="min-w-[80px] justify-center">{sections.length} section{sections.length > 1 ? "s" : ""}</Badge>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleAddSection(className)}>
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {sections.map((cls) => {
