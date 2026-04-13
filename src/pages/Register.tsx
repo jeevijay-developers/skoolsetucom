@@ -728,7 +728,6 @@ const Register = () => {
           open={showClassWizard}
           schoolId={registeredSchoolId}
           onComplete={goToDashboard}
-          onSkip={goToDashboard}
         />
       )}
     </>

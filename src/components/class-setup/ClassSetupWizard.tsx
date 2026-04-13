@@ -13,7 +13,6 @@ interface ClassSetupWizardProps {
   open: boolean;
   schoolId: string;
   onComplete: () => void;
-  onSkip: () => void;
 }
 
 const CLASS_CATEGORIES = [
@@ -37,7 +36,7 @@ const CLASS_CATEGORIES = [
 
 const SECTION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-const ClassSetupWizard = ({ open, schoolId, onComplete, onSkip }: ClassSetupWizardProps) => {
+const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps) => {
   const [step, setStep] = useState(1);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [sectionCounts, setSectionCounts] = useState<Record<string, number>>({});
@@ -202,10 +201,8 @@ const ClassSetupWizard = ({ open, schoolId, onComplete, onSkip }: ClassSetupWiza
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {step === 1 ? (
             <>
-              <Button variant="ghost" onClick={onSkip} className="sm:mr-auto">
-                Skip for now
-              </Button>
               <Button
+                className="sm:ml-auto"
                 onClick={() => {
                   if (selectedClasses.length === 0) {
                     toast.error("Please select at least one class");
