@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
@@ -16,30 +16,18 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }: ProtectedRouteProps) => {
   const navigate = useNavigate();
-  const { user, userRole, loading, isSubscriptionActive, signOut } = useAuth();
-  const [showIncompleteMessage, setShowIncompleteMessage] = useState(false);
+  const { user, userRole, loading, roleLoaded, isSubscriptionActive, signOut } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !roleLoaded) return;
 
     if (!user) {
       navigate("/login");
       return;
     }
 
-    // Give some time for userRole to load after auth
-    const timeout = setTimeout(() => {
-      if (user && !userRole) {
-        // User has auth but no role - incomplete registration
-        setShowIncompleteMessage(true);
-      }
-    }, 2000);
-
     if (userRole) {
-      setShowIncompleteMessage(false);
-      
       if (allowedRoles && !allowedRoles.includes(userRole.role)) {
-        // User doesn't have required role, redirect to appropriate dashboard
         switch (userRole.role) {
           case "super_admin":
             navigate("/super-admin");
@@ -60,17 +48,9 @@ const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }:
           default:
             navigate("/login");
         }
-        return;
-      }
-
-      // Check subscription for non-super-admin roles
-      if (requireSubscription && userRole.role !== "super_admin" && !isSubscriptionActive) {
-        // Subscription is not active - for now we show a warning but don't block
       }
     }
-
-    return () => clearTimeout(timeout);
-  }, [user, userRole, loading, allowedRoles, requireSubscription, isSubscriptionActive, navigate]);
+  }, [user, userRole, loading, roleLoaded, allowedRoles, requireSubscription, isSubscriptionActive, navigate]);
 
   const handleCompleteRegistration = () => {
     navigate("/complete-registration");
@@ -81,7 +61,7 @@ const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }:
     navigate("/login");
   };
 
-  if (loading) {
+  if (loading || !roleLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -93,8 +73,8 @@ const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }:
     return null;
   }
 
-  // Show incomplete registration message
-  if (showIncompleteMessage && !userRole) {
+  // Role fetch completed but no role found — truly incomplete registration
+  if (!userRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="max-w-md w-full shadow-card">
@@ -104,7 +84,7 @@ const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }:
             </div>
             <CardTitle className="text-xl">Registration Incomplete</CardTitle>
             <CardDescription>
-              Your account was created but the registration process wasn't completed. 
+              Your account was created but the registration process wasn't completed.
               This can happen due to a temporary issue.
             </CardDescription>
           </CardHeader>
@@ -122,15 +102,6 @@ const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }:
             </div>
           </CardContent>
         </Card>
-      </div>
-    );
-  }
-
-  // Still loading user role
-  if (!userRole) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
