@@ -23,11 +23,9 @@ const Login = () => {
     if (!loading && user && roleLoaded) {
       if (userRole) {
         redirectBasedOnRole(userRole.role);
-      } else {
-        navigate("/complete-registration");
       }
     }
-  }, [user, userRole, loading, roleLoaded]);
+  }, [user, userRole, loading, roleLoaded, navigate]);
 
   const redirectBasedOnRole = (role: string) => {
     switch (role) {
@@ -187,15 +185,12 @@ const Login = () => {
           {/* Login Form Container */}
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="w-full max-w-md space-y-8">
-              {/* Alert for incomplete registration */}
+              {/* Alert for delayed account setup */}
               {user && roleLoaded && !userRole && (
                 <Alert className="border-amber-500/50 bg-amber-500/10">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Your account exists but registration is incomplete.{" "}
-                    <Link to="/complete-registration" className="font-medium underline">
-                      Complete registration
-                    </Link>
+                    Your account setup is still being finalized. Please wait a moment and sign in again if the dashboard does not open automatically.
                   </AlertDescription>
                 </Alert>
               )}

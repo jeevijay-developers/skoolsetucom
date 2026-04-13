@@ -52,10 +52,6 @@ const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }:
     }
   }, [user, userRole, loading, roleLoaded, allowedRoles, requireSubscription, isSubscriptionActive, navigate]);
 
-  const handleCompleteRegistration = () => {
-    navigate("/complete-registration");
-  };
-
   const handleSignOut = async () => {
     await signOut();
     navigate("/login");
@@ -90,14 +86,11 @@ const ProtectedRoute = ({ children, allowedRoles, requireSubscription = false }:
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">
-              Please complete your school registration to access the dashboard.
+              Your account setup is still being finalized. Please wait a moment, then sign in again.
             </p>
             <div className="flex flex-col gap-2">
-              <Button onClick={handleCompleteRegistration} className="w-full">
-                Complete Registration
-              </Button>
               <Button variant="outline" onClick={handleSignOut} className="w-full">
-                Sign Out & Try Again
+                Sign Out
               </Button>
             </div>
           </CardContent>
