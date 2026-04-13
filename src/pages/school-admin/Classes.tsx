@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
+import ClassSetupWizard from "@/components/class-setup/ClassSetupWizard";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,7 @@ const Classes = () => {
   const [viewingClass, setViewingClass] = useState<Class | null>(null);
   const [classStudents, setClassStudents] = useState<Student[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   // Get unique subjects from all teachers
   const availableSubjects = useMemo(() => {
