@@ -1,38 +1,21 @@
 
 
-## Phase 6: Bulk Import (without TC Generation)
+## Fix: Remove "Registration Incomplete" blocker in ProtectedRoute
 
-### Goal
-Allow school admins to bulk-import Students, Teachers, and Employees via CSV file upload.
+### Problem
+After admin account creation, the ProtectedRoute shows a "Registration Incomplete" card because the user role takes time to load. The 2-second timeout fires before `roleLoaded` is true, blocking dashboard access.
 
-### What Was Built
+### Solution
+Use the `roleLoaded` flag from AuthContext instead of an arbitrary 2-second timeout. Only show the incomplete message when `roleLoaded` is true AND `userRole` is null — meaning the role fetch completed but no role was found.
 
-**1. Reusable CSVImporter Component** (`src/components/import/CSVImporter.tsx`)
-- File upload with drag-and-drop style UI
-- Papa Parse CSV parsing with header detection
-- Preview table with row-level validation and error indicators
-- Batch insert with chunking (50 per batch)
-- Duplicate detection by configurable field
-- Download CSV template with sample data
-- Import summary: imported / skipped / errors
+### Changes
 
-**2. Student CSV Import** — "Import CSV" button on Students page
-- Auto-resolves class name + section to class_id
-- Duplicate detection by admission number
+**`src/components/ProtectedRoute.tsx`**
+- Remove the `useState` for `showIncompleteMessage` and the `setTimeout` logic
+- Use `roleLoaded` from `useAuth()` to determine state
+- If `loading` or `!roleLoaded` → show spinner
+- If `roleLoaded && !userRole` → show the incomplete registration card (but only after role fetch is truly done, not after an arbitrary timer)
+- This eliminates the false-positive "incomplete" screen that appears during normal role loading
 
-**3. Teacher CSV Import** — "Import CSV" button on Teachers page
-- Subjects parsed from comma-separated string
-- Duplicate detection by email
+This is a single-file fix with no database changes.
 
-**4. Employee CSV Import** — "Import CSV" button on Employees page
-- Category normalized to snake_case
-- Duplicate detection by employee code
-
-### Files Changed
-- New: `src/components/import/CSVImporter.tsx`
-- Edit: `src/pages/school-admin/Students.tsx`
-- Edit: `src/pages/school-admin/Teachers.tsx`
-- Edit: `src/pages/school-admin/Employees.tsx`
-- New dependency: `papaparse` + `@types/papaparse`
-
-### No Database Migration Required
