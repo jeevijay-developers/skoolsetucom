@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
@@ -125,6 +125,8 @@ const Students = () => {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [selectedClassName, setSelectedClassName] = useState("");
+  const [selectedSection, setSelectedSection] = useState("");
   const [formData, setFormData] = useState({
     full_name: "",
     roll_number: "",
@@ -145,6 +147,30 @@ const Students = () => {
     previous_school: "",
     nationality: "",
   });
+
+  // Derive unique class names and filtered sections
+  const uniqueClassNames = useMemo(() => {
+    const names = [...new Set(classes.map((c) => c.name))];
+    return names;
+  }, [classes]);
+
+  const sectionsForSelectedClass = useMemo(() => {
+    if (!selectedClassName) return [];
+    return classes.filter((c) => c.name === selectedClassName);
+  }, [selectedClassName, classes]);
+
+  // Auto-select section if only one exists
+  useEffect(() => {
+    if (sectionsForSelectedClass.length === 1) {
+      const cls = sectionsForSelectedClass[0];
+      setSelectedSection(cls.section || "A");
+      setFormData((prev) => ({ ...prev, class_id: cls.id }));
+    } else {
+      // reset if class name changed
+      setSelectedSection("");
+      setFormData((prev) => ({ ...prev, class_id: "" }));
+    }
+  }, [selectedClassName, sectionsForSelectedClass]);
 
   useEffect(() => {
     if (schoolId) {
@@ -440,6 +466,15 @@ const Students = () => {
 
   const handleEdit = (student: any) => {
     setEditingStudent(student);
+    // Set class name and section from the student's class
+    const studentClass = classes.find((c) => c.id === student.class_id);
+    if (studentClass) {
+      setSelectedClassName(studentClass.name);
+      setSelectedSection(studentClass.section || "A");
+    } else {
+      setSelectedClassName("");
+      setSelectedSection("");
+    }
     setFormData({
       full_name: student.full_name,
       roll_number: student.roll_number || "",
@@ -593,6 +628,8 @@ const Students = () => {
 
   const resetForm = () => {
     setEditingStudent(null);
+    setSelectedClassName("");
+    setSelectedSection("");
     setFormData({
       full_name: "",
       roll_number: "",
@@ -797,24 +834,49 @@ const Students = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="class_id">Class</Label>
+                        <Label htmlFor="class_name">Class</Label>
                         <Select
-                          value={formData.class_id}
-                          onValueChange={(value) => setFormData({ ...formData, class_id: value })}
+                          value={selectedClassName}
+                          onValueChange={(value) => setSelectedClassName(value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select class" />
                           </SelectTrigger>
                           <SelectContent>
-                            {classes.map((cls) => (
-                              <SelectItem key={cls.id} value={cls.id}>
-                                {cls.name} {cls.section ? `- ${cls.section}` : ""}
+                            {uniqueClassNames.map((name) => (
+                              <SelectItem key={name} value={name}>
+                                {name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
+
+                    {selectedClassName && sectionsForSelectedClass.length > 1 && (
+                      <div className="space-y-2">
+                        <Label htmlFor="section">Section</Label>
+                        <Select
+                          value={selectedSection}
+                          onValueChange={(value) => {
+                            setSelectedSection(value);
+                            const match = classes.find((c) => c.name === selectedClassName && (c.section || "A") === value);
+                            if (match) setFormData({ ...formData, class_id: match.id });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select section" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sectionsForSelectedClass.map((cls) => (
+                              <SelectItem key={cls.id} value={cls.section || "A"}>
+                                {cls.section || "A"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">

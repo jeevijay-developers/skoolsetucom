@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye, Download, IndianRupee } from "lucide-react";
+import { Plus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye, Download, IndianRupee, PlusCircle } from "lucide-react";
 import { exportToCSV, formatClassesForExport } from "@/utils/exportUtils";
 
 interface Class {
@@ -506,6 +506,46 @@ const Classes = () => {
     return teachers.find(t => t.id === classTeacherId)?.full_name;
   };
 
+  // Group classes by name for display
+  const groupedClasses = useMemo(() => {
+    const groups: Record<string, Class[]> = {};
+    classes.forEach((cls) => {
+      if (!groups[cls.name]) groups[cls.name] = [];
+      groups[cls.name].push(cls);
+    });
+    // Sort sections within each group
+    Object.values(groups).forEach((g) => g.sort((a, b) => (a.section || "A").localeCompare(b.section || "A")));
+    return groups;
+  }, [classes]);
+
+  const handleAddSection = async (className: string) => {
+    const existing = groupedClasses[className] || [];
+    const existingSections = existing.map((c) => c.section || "A");
+    // Find next available letter
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let nextSection = "A";
+    for (const letter of alphabet) {
+      if (!existingSections.includes(letter)) {
+        nextSection = letter;
+        break;
+      }
+    }
+    try {
+      const academicYear = existing[0]?.academic_year || "2024-25";
+      const { error } = await supabase.from("classes").insert({
+        name: className,
+        section: nextSection,
+        school_id: schoolId,
+        academic_year: academicYear,
+      });
+      if (error) throw error;
+      toast.success(`Section ${className}-${nextSection} added`);
+      fetchClasses();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   return (
     <>
       <Helmet><title>Classes - SkoolSetu</title></Helmet>
@@ -661,72 +701,84 @@ const Classes = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {classes.map((cls) => {
-                const classTeacherName = getClassTeacherName(cls.class_teacher_id);
-                const studentCount = studentCounts[cls.id] || 0;
-                const feeCount = feeStructureCounts[cls.id] || 0;
-                return (
-                  <Card key={cls.id} className="shadow-card hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <School className="h-6 w-6 text-primary" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-lg">
-                              {cls.name}{cls.section ? ` - ${cls.section}` : ""}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">{cls.academic_year}</p>
-                          </div>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => openStudentsDialog(cls)}>
-                          <Eye className="h-3.5 w-3.5 mr-1" />View
-                        </Button>
-                      </div>
+            <div className="space-y-6">
+              {Object.entries(groupedClasses).map(([className, sections]) => (
+                <div key={className}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-lg font-semibold">{className}</h3>
+                    <Badge variant="secondary">{sections.length} section{sections.length > 1 ? "s" : ""}</Badge>
+                    <Button variant="ghost" size="sm" onClick={() => handleAddSection(className)} className="text-primary">
+                      <PlusCircle className="h-4 w-4 mr-1" />Add Section
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {sections.map((cls) => {
+                      const classTeacherName = getClassTeacherName(cls.class_teacher_id);
+                      const studentCount = studentCounts[cls.id] || 0;
+                      const feeCount = feeStructureCounts[cls.id] || 0;
+                      return (
+                        <Card key={cls.id} className="shadow-card hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                                  <School className="h-6 w-6 text-primary" />
+                                </div>
+                                <div>
+                                  <h3 className="font-semibold text-lg">
+                                    {cls.name}{cls.section ? ` - ${cls.section}` : ""}
+                                  </h3>
+                                  <p className="text-sm text-muted-foreground">{cls.academic_year}</p>
+                                </div>
+                              </div>
+                              <Button variant="outline" size="sm" onClick={() => openStudentsDialog(cls)}>
+                                <Eye className="h-3.5 w-3.5 mr-1" />View
+                              </Button>
+                            </div>
 
-                      {/* Student Count, Class Teacher & Fee Structures */}
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                          <Users className="h-4 w-4 text-primary" />
-                          <span className="text-sm">
-                            <span className="font-semibold">{studentCount}</span> Students
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                          <IndianRupee className="h-4 w-4 text-secondary" />
-                          <span className="text-sm">
-                            <span className="font-semibold">{feeCount}</span> Fees
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 mb-3">
-                        <UserCheck className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm truncate">
-                          {classTeacherName ? (
-                            <span className="font-medium">{classTeacherName}</span>
-                          ) : (
-                            <span className="text-muted-foreground">No CT</span>
-                          )}
-                        </span>
-                      </div>
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                                <Users className="h-4 w-4 text-primary" />
+                                <span className="text-sm">
+                                  <span className="font-semibold">{studentCount}</span> Students
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                                <IndianRupee className="h-4 w-4 text-secondary" />
+                                <span className="text-sm">
+                                  <span className="font-semibold">{feeCount}</span> Fees
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 mb-3">
+                              <UserCheck className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm truncate">
+                                {classTeacherName ? (
+                                  <span className="font-medium">{classTeacherName}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">No CT</span>
+                                )}
+                              </span>
+                            </div>
 
-                      <div className="flex items-center gap-2 pt-2 border-t">
-                        <Button variant="default" size="sm" className="flex-1" onClick={() => openManageDialog(cls)}>
-                          <Settings className="h-3.5 w-3.5 mr-1" />Manage
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => { setEditingClass(cls); setFormData({ name: cls.name, section: cls.section || "", academic_year: cls.academic_year }); setIsDialogOpen(true); }}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteClass(cls.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                            <div className="flex items-center gap-2 pt-2 border-t">
+                              <Button variant="default" size="sm" className="flex-1" onClick={() => openManageDialog(cls)}>
+                                <Settings className="h-3.5 w-3.5 mr-1" />Manage
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => { setEditingClass(cls); setFormData({ name: cls.name, section: cls.section || "", academic_year: cls.academic_year }); setIsDialogOpen(true); }}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteClass(cls.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

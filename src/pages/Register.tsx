@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { ArrowLeft, School, User, CheckCircle, Sparkles, Shield, Users, Crown, IndianRupee } from "lucide-react";
 import logo from "@/assets/skoolsetu-logo.png";
+import ClassSetupWizard from "@/components/class-setup/ClassSetupWizard";
 
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -41,6 +42,8 @@ const Register = () => {
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [showClassWizard, setShowClassWizard] = useState(false);
+  const [registeredSchoolId, setRegisteredSchoolId] = useState<string | null>(null);
   
   // Get pricing data from URL params
   const selectedPlan = searchParams.get("plan") || "basic";
@@ -268,8 +271,9 @@ const Register = () => {
       }
 
       await refreshUserData();
-      toast.success("Registration successful! Redirecting to your dashboard...");
-      navigate("/school-admin", { replace: true });
+      toast.success("Registration successful! Now set up your classes.");
+      setRegisteredSchoolId(schoolId);
+      setShowClassWizard(true);
       
     } catch (error) {
       console.error("Registration error:", error);
@@ -285,6 +289,10 @@ const Register = () => {
     : (selectedBilling === "annually" ? 1 : 2);
   const monthlyPrice = parseInt(studentCount || "50") * pricePerDay * 30;
   const displayPrice = selectedBilling === "annually" ? monthlyPrice * 12 : monthlyPrice;
+
+  const goToDashboard = () => {
+    navigate("/school-admin", { replace: true });
+  };
 
   return (
     <>
@@ -715,6 +723,14 @@ const Register = () => {
           </div>
         </div>
       </div>
+      {registeredSchoolId && (
+        <ClassSetupWizard
+          open={showClassWizard}
+          schoolId={registeredSchoolId}
+          onComplete={goToDashboard}
+          onSkip={goToDashboard}
+        />
+      )}
     </>
   );
 };
