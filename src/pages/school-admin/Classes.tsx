@@ -716,16 +716,29 @@ const Classes = () => {
           {loading ? (
             <div className="text-center py-8">Loading...</div>
           ) : classes.length === 0 ? (
-            <Card className="shadow-card">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <School className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Classes Yet</h3>
-                <p className="text-muted-foreground mb-4">Add your first class to get started</p>
-                <Button onClick={() => setIsDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />Add Class
-                </Button>
-              </CardContent>
-            </Card>
+            <>
+              <Card className="shadow-card">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <School className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No Classes Yet</h3>
+                  <p className="text-muted-foreground mb-4">Set up your school's class structure to get started</p>
+                  <Button onClick={() => setShowSetupWizard(true)}>
+                    <Plus className="h-4 w-4 mr-2" />Set Up Classes
+                  </Button>
+                </CardContent>
+              </Card>
+              {schoolId && (
+                <ClassSetupWizard
+                  open={showSetupWizard}
+                  schoolId={schoolId}
+                  onComplete={() => {
+                    setShowSetupWizard(false);
+                    fetchClasses();
+                    fetchFeeStructureCounts();
+                  }}
+                />
+              )}
+            </>
           ) : (
             <div className="space-y-6">
               {Object.entries(groupedClasses).map(([className, sections]) => (
