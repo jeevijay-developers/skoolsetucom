@@ -2,12 +2,11 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { School, ArrowRight, ArrowLeft, CheckCircle, Sparkles } from "lucide-react";
+import { School, ArrowRight, ArrowLeft, CheckCircle, Sparkles, Plus, Minus } from "lucide-react";
 
 interface ClassSetupWizardProps {
   open: boolean;
@@ -182,15 +181,13 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-sm text-muted-foreground whitespace-nowrap">Sections:</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={26}
-                      value={count}
-                      onChange={(e) => setSectionCount(cls, parseInt(e.target.value) || 1)}
-                      className="w-16 text-center"
-                    />
+                    <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setSectionCount(cls, count - 1)} disabled={count <= 1}>
+                      <Minus className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="w-8 text-center font-semibold">{count}</span>
+                    <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setSectionCount(cls, count + 1)} disabled={count >= 26}>
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               );
