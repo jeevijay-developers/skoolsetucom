@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -59,16 +59,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [roleLoaded, setRoleLoaded] = useState(false);
+  const latestFetchIdRef = useRef(0);
 
   const fetchUserData = async (userId: string) => {
+    const fetchId = ++latestFetchIdRef.current;
     setRoleLoaded(false);
+
     try {
-      // Fetch user role
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      let roleData: UserRole | null = null;
+      let roleError: Error | null = null;
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const { data, error } = await supabase
+          .from("user_roles")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        roleData = data;
+        roleError = error;
+
+        if (error || data || attempt === 9) {
+          break;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 300));
+      }
+
+      if (fetchId !== latestFetchIdRef.current) {
+        return;
+      }
 
       if (roleError) {
         console.error("Error fetching role:", roleError);
@@ -77,10 +97,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (roleData) {
-        setUserRole(roleData);
-        setSchoolId(roleData.school_id);
+        let nextSubscription: Subscription | null = null;
 
-        // Fetch subscription if user belongs to a school
         if (roleData.school_id) {
           const { data: subData, error: subError } = await supabase
             .from("subscriptions")
@@ -88,18 +106,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .eq("school_id", roleData.school_id)
             .maybeSingle();
 
-          if (!subError && subData) {
-            setSubscription(subData);
+          if (fetchId !== latestFetchIdRef.current) {
+            return;
+          }
+
+          if (subError) {
+            console.error("Error fetching subscription:", subError);
+          } else {
+            nextSubscription = subData;
           }
         }
+
+        setUserRole(roleData);
+        setSchoolId(roleData.school_id);
+        setSubscription(nextSubscription);
       } else {
-        // User exists but has no role - clear any stale data
         setUserRole(null);
         setSchoolId(null);
         setSubscription(null);
       }
+
       setRoleLoaded(true);
     } catch (error) {
+      if (fetchId !== latestFetchIdRef.current) {
+        return;
+      }
+
       console.error("Error fetching user data:", error);
       setRoleLoaded(true);
     }
