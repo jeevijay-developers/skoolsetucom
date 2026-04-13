@@ -466,6 +466,15 @@ const Students = () => {
 
   const handleEdit = (student: any) => {
     setEditingStudent(student);
+    // Set class name and section from the student's class
+    const studentClass = classes.find((c) => c.id === student.class_id);
+    if (studentClass) {
+      setSelectedClassName(studentClass.name);
+      setSelectedSection(studentClass.section || "A");
+    } else {
+      setSelectedClassName("");
+      setSelectedSection("");
+    }
     setFormData({
       full_name: student.full_name,
       roll_number: student.roll_number || "",
@@ -619,6 +628,8 @@ const Students = () => {
 
   const resetForm = () => {
     setEditingStudent(null);
+    setSelectedClassName("");
+    setSelectedSection("");
     setFormData({
       full_name: "",
       roll_number: "",
