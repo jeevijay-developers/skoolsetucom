@@ -63,7 +63,6 @@ const Teachers = () => {
     phone: "",
     employee_id: "",
     qualification: "",
-    subjects: "",
     date_of_joining: "",
     base_salary: "",
   });
@@ -74,7 +73,6 @@ const Teachers = () => {
   const [overviewDialogOpen, setOverviewDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
-  const [teacherSubjects, setTeacherSubjects] = useState<ClassSubject[]>([]);
   const [baseSalary, setBaseSalary] = useState<number>(0);
   const [loadingOverview, setLoadingOverview] = useState(false);
 
