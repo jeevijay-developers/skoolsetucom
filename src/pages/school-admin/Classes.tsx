@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Minus, Pencil, Trash2, School, BookOpen, Users, Settings, GraduationCap, UserCheck, Eye, Download, IndianRupee } from "lucide-react";
+import { Plus, Minus, Pencil, Trash2, School, Users, Settings, GraduationCap, UserCheck, Eye, Download, IndianRupee } from "lucide-react";
 import { exportToCSV, formatClassesForExport } from "@/utils/exportUtils";
 
 interface Class {
@@ -28,14 +28,6 @@ interface Class {
 interface Teacher {
   id: string;
   full_name: string;
-  subjects: string[] | null;
-}
-
-interface ClassSubject {
-  id: string;
-  subject_name: string;
-  teacher_id: string | null;
-  teacher_name?: string | null;
 }
 
 interface Student {
@@ -77,17 +69,12 @@ const Classes = () => {
   // Manage class dialog
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
-  const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
   const [classFeeStructures, setClassFeeStructures] = useState<FeeStructure[]>([]);
   const [classTeacher, setClassTeacher] = useState<string>("");
   const [loadingManage, setLoadingManage] = useState(false);
   
   // Add fee structure to class in manage dialog
   const [manageFeeForm, setManageFeeForm] = useState<NewFeeStructure>({ name: "", amount: "", frequency: "monthly" });
-  
-  // Add subject to class
-  const [selectedSubjectToAdd, setSelectedSubjectToAdd] = useState("");
-  const [selectedSubjectTeacher, setSelectedSubjectTeacher] = useState("");
   
   // Student counts
   const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
@@ -101,25 +88,6 @@ const Classes = () => {
   const [classStudents, setClassStudents] = useState<Student[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
-
-  // Get unique subjects from all teachers
-  const availableSubjects = useMemo(() => {
-    const subjectsSet = new Set<string>();
-    teachers.forEach(teacher => {
-      teacher.subjects?.forEach(subject => {
-        subjectsSet.add(subject.trim());
-      });
-    });
-    return Array.from(subjectsSet).sort();
-  }, [teachers]);
-
-  // Get teachers who can teach the selected subject
-  const teachersForSelectedSubject = useMemo(() => {
-    if (!selectedSubjectToAdd) return [];
-    return teachers.filter(teacher => 
-      teacher.subjects?.some(s => s.trim().toLowerCase() === selectedSubjectToAdd.toLowerCase())
-    );
-  }, [selectedSubjectToAdd, teachers]);
 
   useEffect(() => {
     if (schoolId) {
@@ -143,7 +111,7 @@ const Classes = () => {
   const fetchTeachers = async () => {
     const { data } = await supabase
       .from("teachers")
-      .select("id, full_name, subjects")
+      .select("id, full_name")
       .eq("school_id", schoolId)
       .eq("is_active", true)
       .order("full_name");
@@ -207,30 +175,6 @@ const Classes = () => {
   const fetchClassDetails = async (classId: string) => {
     setLoadingManage(true);
     
-    // Fetch class subjects with teacher info
-    const { data: csData } = await supabase
-      .from("class_subjects")
-      .select("id, subject_id, teacher_id, teachers(id, full_name)")
-      .eq("class_id", classId)
-      .eq("school_id", schoolId);
-    
-    // Get subjects to map IDs to names
-    const { data: subjectsData } = await supabase
-      .from("subjects")
-      .select("id, name")
-      .eq("school_id", schoolId);
-    
-    const subjectMap = new Map(subjectsData?.map(s => [s.id, s.name]) || []);
-    
-    const mappedSubjects: ClassSubject[] = (csData || []).map((cs: any) => ({
-      id: cs.id,
-      subject_name: subjectMap.get(cs.subject_id) || "Unknown Subject",
-      teacher_id: cs.teacher_id,
-      teacher_name: cs.teachers?.full_name || null,
-    }));
-    
-    setClassSubjects(mappedSubjects);
-    
     // Fetch fee structures for this class
     const { data: feeData } = await supabase
       .from("fee_structures")
@@ -279,7 +223,6 @@ const Classes = () => {
         await supabase.from("classes").update(formData).eq("id", editingClass.id);
         toast.success("Class updated");
       } else {
-        // Create class
         const { data: newClass, error: classError } = await supabase
           .from("classes")
           .insert({ ...formData, school_id: schoolId })
@@ -288,7 +231,6 @@ const Classes = () => {
         
         if (classError) throw classError;
         
-        // Create fee structures for the new class
         if (newClass && newFeeStructures.length > 0) {
           const feeStructuresData = newFeeStructures.map(fee => ({
             school_id: schoolId!,
@@ -319,9 +261,8 @@ const Classes = () => {
   };
 
   const handleDeleteClass = async (id: string) => {
-    if (!confirm("Are you sure? This will also remove all subject assignments and fee structures.")) return;
+    if (!confirm("Are you sure? This will also remove all teacher assignments and fee structures.")) return;
     try {
-      await supabase.from("class_subjects").delete().eq("class_id", id);
       await supabase.from("teacher_classes").delete().eq("class_id", id);
       await supabase.from("fee_structures").delete().eq("class_id", id);
       await supabase.from("classes").delete().eq("id", id);
@@ -349,7 +290,6 @@ const Classes = () => {
         .update({ class_teacher_id: teacherId })
         .eq("id", selectedClass.id);
       
-      // Update teacher_classes table
       await supabase
         .from("teacher_classes")
         .delete()
@@ -357,7 +297,6 @@ const Classes = () => {
         .eq("is_class_teacher", true);
       
       if (teacherId) {
-        // Check if entry exists
         const { data: existing } = await supabase
           .from("teacher_classes")
           .select("id")
@@ -383,87 +322,6 @@ const Classes = () => {
       toast.success("Class teacher updated");
       await fetchClasses();
       setManageDialogOpen(false);
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  const handleAddSubjectToClass = async () => {
-    if (!selectedClass || !selectedSubjectToAdd) {
-      toast.error("Please select a subject");
-      return;
-    }
-
-    if (!selectedSubjectTeacher || selectedSubjectTeacher === "_none") {
-      toast.error("Please select a teacher for this subject");
-      return;
-    }
-    
-    // Check if already added
-    if (classSubjects.some(cs => cs.subject_name.toLowerCase() === selectedSubjectToAdd.toLowerCase())) {
-      toast.error("Subject already added to this class");
-      return;
-    }
-    
-    try {
-      // First, ensure the subject exists in subjects table or create it
-      let subjectId: string | null = null;
-      
-      // Check if subject exists
-      const { data: existingSubject } = await supabase
-        .from("subjects")
-        .select("id")
-        .eq("school_id", schoolId)
-        .ilike("name", selectedSubjectToAdd)
-        .maybeSingle();
-      
-      if (existingSubject) {
-        subjectId = existingSubject.id;
-      } else {
-        // Create the subject
-        const { data: newSubject, error: subjectError } = await supabase
-          .from("subjects")
-          .insert({ name: selectedSubjectToAdd, school_id: schoolId })
-          .select("id")
-          .single();
-        
-        if (subjectError) throw subjectError;
-        subjectId = newSubject.id;
-      }
-      
-      await supabase.from("class_subjects").insert({
-        class_id: selectedClass.id,
-        subject_id: subjectId,
-        teacher_id: selectedSubjectTeacher,
-        school_id: schoolId,
-      });
-      toast.success("Subject added to class");
-      setSelectedSubjectToAdd("");
-      setSelectedSubjectTeacher("");
-      fetchClassDetails(selectedClass.id);
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  const handleUpdateSubjectTeacher = async (classSubjectId: string, teacherId: string) => {
-    try {
-      await supabase
-        .from("class_subjects")
-        .update({ teacher_id: teacherId || null })
-        .eq("id", classSubjectId);
-      toast.success("Subject teacher updated");
-      if (selectedClass) fetchClassDetails(selectedClass.id);
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  const handleRemoveSubjectFromClass = async (classSubjectId: string) => {
-    try {
-      await supabase.from("class_subjects").delete().eq("id", classSubjectId);
-      toast.success("Subject removed from class");
-      if (selectedClass) fetchClassDetails(selectedClass.id);
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -508,14 +366,12 @@ const Classes = () => {
     return teachers.find(t => t.id === classTeacherId)?.full_name;
   };
 
-  // Group classes by name for display
   const groupedClasses = useMemo(() => {
     const groups: Record<string, Class[]> = {};
     classes.forEach((cls) => {
       if (!groups[cls.name]) groups[cls.name] = [];
       groups[cls.name].push(cls);
     });
-    // Sort sections within each group
     Object.values(groups).forEach((g) => g.sort((a, b) => (a.section || "A").localeCompare(b.section || "A")));
     return groups;
   }, [classes]);
@@ -523,7 +379,6 @@ const Classes = () => {
   const handleAddSection = async (className: string) => {
     const existing = groupedClasses[className] || [];
     const existingSections = existing.map((c) => c.section || "A");
-    // Find next available letter
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let nextSection = "A";
     for (const letter of alphabet) {
@@ -562,7 +417,6 @@ const Classes = () => {
     }
     if (!confirm(`Remove section ${className}-${lastSection.section || "A"}?`)) return;
     try {
-      await supabase.from("class_subjects").delete().eq("class_id", lastSection.id);
       await supabase.from("teacher_classes").delete().eq("class_id", lastSection.id);
       await supabase.from("fee_structures").delete().eq("class_id", lastSection.id);
       await supabase.from("classes").delete().eq("id", lastSection.id);
@@ -582,7 +436,7 @@ const Classes = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold">Classes</h1>
-              <p className="text-muted-foreground">Manage classes, subjects, teachers & fee structures</p>
+              <p className="text-muted-foreground">Manage classes, teachers & fee structures</p>
             </div>
             <div className="flex gap-2">
               <Button 
@@ -631,7 +485,6 @@ const Classes = () => {
                       <Input value={formData.section} onChange={(e) => setFormData({ ...formData, section: e.target.value })} placeholder="e.g., A" />
                     </div>
                     
-                    {/* Fee Structures Section - Only for new classes */}
                     {!editingClass && (
                       <div className="space-y-3 pt-2 border-t">
                         <div className="flex items-center gap-2">
@@ -642,7 +495,6 @@ const Classes = () => {
                           Add fee structures for this class. At least one is required.
                         </p>
                         
-                        {/* Added Fee Structures */}
                         {newFeeStructures.length > 0 && (
                           <div className="space-y-2">
                             {newFeeStructures.map((fee, index) => (
@@ -666,7 +518,6 @@ const Classes = () => {
                           </div>
                         )}
                         
-                        {/* Add Fee Form */}
                         <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
                           <div className="space-y-2">
                             <Label className="text-sm">Fee Name</Label>
@@ -842,12 +693,9 @@ const Classes = () => {
                 <div className="py-8 text-center">Loading...</div>
               ) : (
                 <Tabs defaultValue="class-teacher" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="class-teacher">
                       <GraduationCap className="h-4 w-4 mr-2" />Class Teacher
-                    </TabsTrigger>
-                    <TabsTrigger value="subjects">
-                      <BookOpen className="h-4 w-4 mr-2" />Subjects
                     </TabsTrigger>
                     <TabsTrigger value="fees">
                       <IndianRupee className="h-4 w-4 mr-2" />Fee Structures
@@ -877,119 +725,8 @@ const Classes = () => {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="subjects" className="space-y-4 mt-4">
-                    {/* Add Subject */}
-                    <div className="p-4 border rounded-lg bg-muted/30">
-                      <h4 className="font-medium mb-3">Add Subject to Class</h4>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Select a subject from teachers' subject list, then choose a teacher who can teach it.
-                      </p>
-                      <div className="flex flex-col gap-3">
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Select value={selectedSubjectToAdd} onValueChange={(val) => {
-                            setSelectedSubjectToAdd(val);
-                            setSelectedSubjectTeacher(""); // Reset teacher when subject changes
-                          }}>
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Step 1: Select Subject" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableSubjects
-                                .filter(s => !classSubjects.some(cs => cs.subject_name.toLowerCase() === s.toLowerCase()))
-                                .map((s) => (
-                                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                          <Select 
-                            value={selectedSubjectTeacher} 
-                            onValueChange={setSelectedSubjectTeacher}
-                            disabled={!selectedSubjectToAdd}
-                          >
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder={selectedSubjectToAdd ? "Step 2: Select Teacher" : "Select subject first"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {teachersForSelectedSubject.length === 0 ? (
-                                <SelectItem value="_none" disabled>No teachers available</SelectItem>
-                              ) : (
-                                teachersForSelectedSubject.map((t) => (
-                                  <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <Button onClick={handleAddSubjectToClass} disabled={!selectedSubjectToAdd || !selectedSubjectTeacher}>
-                            <Plus className="h-4 w-4 mr-1" />Add
-                          </Button>
-                        </div>
-                        {availableSubjects.length === 0 && (
-                          <p className="text-sm text-amber-600">
-                            No subjects available. Add subjects to teachers first in the Teachers section.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Subject List */}
-                    {classSubjects.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No subjects assigned to this class yet
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Subject</TableHead>
-                            <TableHead>Teacher</TableHead>
-                            <TableHead className="w-20">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {classSubjects.map((cs) => (
-                            <TableRow key={cs.id}>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                                  <span className="font-medium">{cs.subject_name}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={cs.teacher_id || "_none"}
-                                  onValueChange={(val) => handleUpdateSubjectTeacher(cs.id, val === "_none" ? "" : val)}
-                                >
-                                  <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Assign Teacher" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="_none">No Teacher</SelectItem>
-                                    {teachers.filter(t => t.subjects?.some(s => s.trim().toLowerCase() === cs.subject_name.toLowerCase())).map((t) => (
-                                      <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => handleRemoveSubjectFromClass(cs.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </TabsContent>
-
                   {/* Fee Structures Tab */}
                   <TabsContent value="fees" className="space-y-4 mt-4">
-                    {/* Add Fee Structure */}
                     <div className="p-4 border rounded-lg bg-muted/30">
                       <h4 className="font-medium mb-3">Add Fee Structure</h4>
                       <div className="grid gap-3">
@@ -1032,7 +769,6 @@ const Classes = () => {
                       </div>
                     </div>
 
-                    {/* Fee Structures List */}
                     {classFeeStructures.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         No fee structures for this class yet

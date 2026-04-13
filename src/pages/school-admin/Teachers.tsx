@@ -27,7 +27,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, BookOpen, GraduationCap, Phone, Calendar, IndianRupee, Download, FileUp } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, UserX, UserCheck, Mail, Eye, Lock, GraduationCap, Phone, Calendar, IndianRupee, Download, FileUp } from "lucide-react";
 import { exportToCSV, formatTeachersForExport } from "@/utils/exportUtils";
 import CSVImporter, { ImportConfig } from "@/components/import/CSVImporter";
 
@@ -38,7 +38,6 @@ interface Teacher {
   phone: string | null;
   employee_id: string | null;
   qualification: string | null;
-  subjects: string[] | null;
   date_of_joining: string | null;
   is_active: boolean;
   user_id: string | null;
@@ -49,14 +48,6 @@ interface TeacherClass {
   class_id: string;
   is_class_teacher: boolean;
   classes?: { name: string; section: string | null } | null;
-}
-
-interface ClassSubject {
-  id: string;
-  class_id: string;
-  subject_id: string;
-  classes?: { name: string; section: string | null } | null;
-  subjects?: { name: string } | null;
 }
 
 const Teachers = () => {
@@ -72,22 +63,18 @@ const Teachers = () => {
     phone: "",
     employee_id: "",
     qualification: "",
-    subjects: "",
     date_of_joining: "",
     base_salary: "",
   });
   const [createAccount, setCreateAccount] = useState(false);
   const [accountPassword, setAccountPassword] = useState("");
 
-  // Master data state
   const [overviewDialogOpen, setOverviewDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
-  const [teacherSubjects, setTeacherSubjects] = useState<ClassSubject[]>([]);
   const [baseSalary, setBaseSalary] = useState<number>(0);
   const [loadingOverview, setLoadingOverview] = useState(false);
 
-  // Password change state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -103,14 +90,12 @@ const Teachers = () => {
 
   const fetchTeachers = async () => {
     if (!schoolId) return;
-
     try {
       const { data, error } = await supabase
         .from("teachers")
         .select("*")
         .eq("school_id", schoolId)
         .order("full_name");
-
       if (error) throw error;
       setTeachers(data || []);
     } catch (error) {
@@ -125,9 +110,7 @@ const Teachers = () => {
     setSelectedTeacher(teacher);
     setOverviewDialogOpen(true);
     setLoadingOverview(true);
-
     try {
-      // Fetch teacher's assigned classes
       const { data: classData, error: classError } = await supabase
         .from("teacher_classes")
         .select(`
@@ -136,25 +119,9 @@ const Teachers = () => {
         `)
         .eq("teacher_id", teacher.id)
         .eq("school_id", schoolId!);
-
       if (classError) throw classError;
       setTeacherClasses(classData || []);
 
-      // Fetch teacher's assigned subjects
-      const { data: subjectData, error: subjectError } = await supabase
-        .from("class_subjects")
-        .select(`
-          id, class_id, subject_id,
-          classes:class_id (name, section),
-          subjects:subject_id (name)
-        `)
-        .eq("teacher_id", teacher.id)
-        .eq("school_id", schoolId!);
-
-      if (subjectError) throw subjectError;
-      setTeacherSubjects(subjectData || []);
-
-      // Fetch salary from employees table
       if (teacher.email) {
         const { data: empData } = await supabase
           .from("employees")
@@ -162,7 +129,6 @@ const Teachers = () => {
           .eq("email", teacher.email)
           .eq("school_id", schoolId!)
           .maybeSingle();
-
         setBaseSalary(empData?.base_salary || 0);
       }
     } catch (error) {
@@ -178,17 +144,14 @@ const Teachers = () => {
       toast.error("This teacher has no login account");
       return;
     }
-
     if (newPassword.length < 6) {
       toast.error("Password must be at least 6 characters");
       return;
     }
-
     if (newPassword !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
-
     setUpdatingPassword(true);
     try {
       const { error } = await supabase.functions.invoke("create-teacher-login", {
@@ -198,9 +161,7 @@ const Teachers = () => {
           update_password: true
         },
       });
-
       if (error) throw error;
-
       toast.success("Password updated successfully");
       setPasswordDialogOpen(false);
       setNewPassword("");
@@ -215,36 +176,27 @@ const Teachers = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!isSubscriptionActive) {
       toast.error("Your subscription is inactive. Please renew to add teachers.");
       return;
     }
-
     if (!formData.full_name.trim()) {
       toast.error("Please enter teacher name");
       return;
     }
-
     if (!formData.email.trim()) {
       toast.error("Please enter teacher email");
       return;
     }
-
     if (savingTeacher) return;
     setSavingTeacher(true);
     try {
-      const subjectsArray = formData.subjects
-        ? formData.subjects.split(",").map((s) => s.trim()).filter(Boolean)
-        : null;
-
       const teacherData = {
         full_name: formData.full_name,
         email: formData.email || null,
         phone: formData.phone || null,
         employee_id: formData.employee_id || null,
         qualification: formData.qualification || null,
-        subjects: subjectsArray,
         date_of_joining: formData.date_of_joining || null,
       };
 
@@ -264,10 +216,8 @@ const Teachers = () => {
           .from("teachers")
           .update({ ...teacherData, school_id: schoolId! })
           .eq("id", editingTeacher.id);
-
         if (error) throw error;
 
-        // Update corresponding employee record
         await supabase
           .from("employees")
           .update({
@@ -283,7 +233,6 @@ const Teachers = () => {
 
         toast.success("Teacher updated successfully");
       } else if (createAccount && accountPassword) {
-        // Use edge function to create teacher with login account and employee
         const { data, error } = await supabase.functions.invoke("create-teacher-login", {
           body: {
             teacher_data: teacherData,
@@ -292,26 +241,20 @@ const Teachers = () => {
             school_id: schoolId
           },
         });
-
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
-
         toast.success("Teacher added with login account");
       } else {
-        // Add teacher without login account
         const { error: teacherError } = await supabase.from("teachers").insert({
           ...teacherData,
           school_id: schoolId!,
         });
-
         if (teacherError) throw teacherError;
 
-        // Also add to employees table
         const { error: employeeError } = await supabase.from("employees").insert(employeeData);
         if (employeeError) {
           console.error("Error adding employee:", employeeError);
         }
-
         toast.success("Teacher added successfully");
       }
 
@@ -328,9 +271,7 @@ const Teachers = () => {
 
   const handleEdit = async (teacher: Teacher) => {
     setEditingTeacher(teacher);
-    
-    // Fetch salary from employees table
-    let baseSalary = "";
+    let salary = "";
     if (teacher.email) {
       const { data: empData } = await supabase
         .from("employees")
@@ -338,21 +279,18 @@ const Teachers = () => {
         .eq("email", teacher.email)
         .eq("school_id", schoolId!)
         .maybeSingle();
-      
       if (empData?.base_salary) {
-        baseSalary = empData.base_salary.toString();
+        salary = empData.base_salary.toString();
       }
     }
-
     setFormData({
       full_name: teacher.full_name,
       email: teacher.email || "",
       phone: teacher.phone || "",
       employee_id: teacher.employee_id || "",
       qualification: teacher.qualification || "",
-      subjects: teacher.subjects?.join(", ") || "",
       date_of_joining: teacher.date_of_joining || "",
-      base_salary: baseSalary,
+      base_salary: salary,
     });
     setCreateAccount(false);
     setIsDialogOpen(true);
@@ -364,7 +302,6 @@ const Teachers = () => {
         .from("teachers")
         .update({ is_active: !teacher.is_active })
         .eq("id", teacher.id);
-
       if (error) throw error;
       toast.success(`Teacher ${teacher.is_active ? "deactivated" : "activated"} successfully`);
       fetchTeachers();
@@ -376,10 +313,8 @@ const Teachers = () => {
 
   const handleDelete = async (teacher: Teacher) => {
     if (!confirm(`Are you sure you want to delete ${teacher.full_name}?`)) return;
-
     try {
       const { error } = await supabase.from("teachers").delete().eq("id", teacher.id);
-
       if (error) throw error;
       toast.success("Teacher deleted successfully");
       fetchTeachers();
@@ -397,7 +332,6 @@ const Teachers = () => {
       phone: "",
       employee_id: "",
       qualification: "",
-      subjects: "",
       date_of_joining: "",
       base_salary: "",
     });
@@ -416,10 +350,10 @@ const Teachers = () => {
     title: "Import Teachers",
     tableName: "teachers",
     templateFileName: "teachers_template.csv",
-    templateHeaders: ["Full Name", "Email", "Phone", "Employee ID", "Qualification", "Subjects", "Date of Joining"],
+    templateHeaders: ["Full Name", "Email", "Phone", "Employee ID", "Qualification", "Date of Joining"],
     templateSampleRows: [
-      ["Amit Kumar", "amit@school.edu", "9876543210", "EMP-001", "M.Sc Mathematics", "Mathematics, Physics", "2022-06-01"],
-      ["Sunita Verma", "sunita@school.edu", "9876543211", "EMP-002", "B.Ed English", "English, Hindi", "2023-01-15"],
+      ["Amit Kumar", "amit@school.edu", "9876543210", "EMP-001", "M.Sc Mathematics", "2022-06-01"],
+      ["Sunita Verma", "sunita@school.edu", "9876543211", "EMP-002", "B.Ed English", "2023-01-15"],
     ],
     columns: [
       { csvHeader: "Full Name", dbField: "full_name", required: true },
@@ -427,7 +361,6 @@ const Teachers = () => {
       { csvHeader: "Phone", dbField: "phone" },
       { csvHeader: "Employee ID", dbField: "employee_id" },
       { csvHeader: "Qualification", dbField: "qualification" },
-      { csvHeader: "Subjects", dbField: "subjects", transform: (v) => v ? v.split(",").map(s => s.trim()).filter(Boolean) : null },
       { csvHeader: "Date of Joining", dbField: "date_of_joining", transform: (v) => v || null },
     ],
     duplicateCheckField: "email",
@@ -550,23 +483,6 @@ const Teachers = () => {
                       </div>
                     </div>
 
-                    <div className="p-4 border rounded-lg bg-primary/5 space-y-2">
-                      <Label htmlFor="subjects" className="text-base font-semibold flex items-center gap-2">
-                        <BookOpen className="h-4 w-4" />
-                        Subjects This Teacher Can Teach *
-                      </Label>
-                      <Input
-                        id="subjects"
-                        value={formData.subjects}
-                        onChange={(e) => setFormData({ ...formData, subjects: e.target.value })}
-                        placeholder="Mathematics, Science, English"
-                        className="text-base"
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        Enter subjects separated by commas. These subjects will be available for class assignment.
-                      </p>
-                    </div>
-
                     <div className="space-y-2">
                       <Label htmlFor="base_salary">Monthly Salary (₹)</Label>
                       <Input
@@ -674,7 +590,6 @@ const Teachers = () => {
                     }`}
                   >
                     <CardContent className="p-4">
-                      {/* Header with Avatar and Actions */}
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-12 w-12 border-2 border-primary/20">
@@ -756,24 +671,14 @@ const Teachers = () => {
                         </div>
                       </div>
 
-                      {/* Subjects */}
-                      <div className="mb-3">
-                        <div className="flex flex-wrap gap-1">
-                          {teacher.subjects?.slice(0, 3).map((subject) => (
-                            <Badge key={subject} variant="secondary" className="text-xs font-normal">
-                              {subject}
-                            </Badge>
-                          ))}
-                          {teacher.subjects && teacher.subjects.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{teacher.subjects.length - 3}
-                            </Badge>
-                          )}
-                          {(!teacher.subjects || teacher.subjects.length === 0) && (
-                            <span className="text-xs text-muted-foreground italic">No subjects</span>
-                          )}
+                      {/* Qualification */}
+                      {teacher.qualification && (
+                        <div className="mb-3">
+                          <Badge variant="secondary" className="text-xs font-normal">
+                            {teacher.qualification}
+                          </Badge>
                         </div>
-                      </div>
+                      )}
 
                       {/* Footer with Status */}
                       <div className="flex items-center justify-between pt-3 border-t">
@@ -828,10 +733,9 @@ const Teachers = () => {
               </div>
             ) : selectedTeacher && (
               <Tabs defaultValue="info" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="info">Basic Info</TabsTrigger>
                   <TabsTrigger value="classes">Classes</TabsTrigger>
-                  <TabsTrigger value="subjects">Subjects</TabsTrigger>
                   <TabsTrigger value="auth">Login Access</TabsTrigger>
                 </TabsList>
 
@@ -876,24 +780,12 @@ const Teachers = () => {
                       </Badge>
                     </div>
                   </div>
-
-                  <div className="p-4 bg-muted/30 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-2">Subjects (expertise)</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedTeacher.subjects?.map((subject) => (
-                        <Badge key={subject} variant="outline">
-                          {subject}
-                        </Badge>
-                      )) || <span className="text-muted-foreground">No subjects specified</span>}
-                    </div>
-                  </div>
-
                 </TabsContent>
 
                 <TabsContent value="classes" className="space-y-4">
                   {teacherClasses.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      <BookOpen className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <GraduationCap className="h-12 w-12 mx-auto mb-2 opacity-50" />
                       <p>No classes assigned yet</p>
                       <p className="text-sm">Assign classes from the Classes module</p>
                     </div>
@@ -905,7 +797,7 @@ const Teachers = () => {
                           className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
                         >
                           <div className="flex items-center gap-2">
-                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <GraduationCap className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">
                               {tc.classes?.name} {tc.classes?.section ? `- ${tc.classes.section}` : ""}
                             </span>
@@ -913,33 +805,6 @@ const Teachers = () => {
                           {tc.is_class_teacher && (
                             <Badge variant="secondary">Class Teacher</Badge>
                           )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="subjects" className="space-y-4">
-                  {teacherSubjects.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <GraduationCap className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No subjects assigned yet</p>
-                      <p className="text-sm">Assign subjects from the Classes module</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {teacherSubjects.map((cs) => (
-                        <div
-                          key={cs.id}
-                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                        >
-                          <div className="flex items-center gap-2">
-                            <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{cs.subjects?.name}</span>
-                          </div>
-                          <Badge variant="outline">
-                            {cs.classes?.name} {cs.classes?.section ? `- ${cs.classes.section}` : ""}
-                          </Badge>
                         </div>
                       ))}
                     </div>
@@ -987,8 +852,8 @@ const Teachers = () => {
                         </CardContent>
                       </Card>
 
-                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                      <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                        <p className="text-sm">
                           <strong>Note:</strong> Teacher can login using the email above at the main login page.
                           They will be redirected to the Teacher Dashboard after successful login.
                         </p>

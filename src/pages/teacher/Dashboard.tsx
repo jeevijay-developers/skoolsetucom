@@ -201,9 +201,9 @@ const TeacherDashboard = () => {
               variant="secondary" 
             />
             <StatsCard 
-              title="Subjects" 
-              value={teacherData?.subjects?.length || 0} 
-              icon={BookOpen} 
+              title="Assigned Classes" 
+              value={String(assignedClasses.length)} 
+              icon={Users} 
               variant="primary" 
             />
           </div>

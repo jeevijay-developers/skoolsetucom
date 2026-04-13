@@ -69,7 +69,6 @@ export const formatTeachersForExport = (teachers: any[]) => {
     "Phone": t.phone || "-",
     "Employee ID": t.employee_id || "-",
     "Qualification": t.qualification || "-",
-    "Subjects": t.subjects?.join(", ") || "-",
     "Date of Joining": t.date_of_joining || "-",
     "Status": t.is_active ? "Active" : "Inactive",
   }));
