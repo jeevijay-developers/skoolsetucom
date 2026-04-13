@@ -129,20 +129,6 @@ const Teachers = () => {
       if (classError) throw classError;
       setTeacherClasses(classData || []);
 
-      // Fetch teacher's assigned subjects
-      const { data: subjectData, error: subjectError } = await supabase
-        .from("class_subjects")
-        .select(`
-          id, class_id, subject_id,
-          classes:class_id (name, section),
-          subjects:subject_id (name)
-        `)
-        .eq("teacher_id", teacher.id)
-        .eq("school_id", schoolId!);
-
-      if (subjectError) throw subjectError;
-      setTeacherSubjects(subjectData || []);
-
       // Fetch salary from employees table
       if (teacher.email) {
         const { data: empData } = await supabase
@@ -222,18 +208,12 @@ const Teachers = () => {
 
     if (savingTeacher) return;
     setSavingTeacher(true);
-    try {
-      const subjectsArray = formData.subjects
-        ? formData.subjects.split(",").map((s) => s.trim()).filter(Boolean)
-        : null;
-
       const teacherData = {
         full_name: formData.full_name,
         email: formData.email || null,
         phone: formData.phone || null,
         employee_id: formData.employee_id || null,
         qualification: formData.qualification || null,
-        subjects: subjectsArray,
         date_of_joining: formData.date_of_joining || null,
       };
 
