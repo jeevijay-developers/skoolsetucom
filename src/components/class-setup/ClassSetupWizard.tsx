@@ -30,7 +30,16 @@ const CLASS_CATEGORIES = [
   {
     label: "Senior Secondary",
     classes: ["11th", "12th"],
+    hasStreams: true,
   },
+];
+
+const STREAMS = [
+  { id: "Science", label: "Science", description: "PCM / PCB" },
+  { id: "Commerce", label: "Commerce", description: "Accounts, Business Studies" },
+  { id: "Arts", label: "Arts / Humanities", description: "History, Political Science, etc." },
+  { id: "Vocational", label: "Vocational", description: "IT, Tourism, Agriculture, etc." },
+  { id: "General", label: "General", description: "No specific stream" },
 ];
 
 const SECTION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -38,22 +47,78 @@ const SECTION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps) => {
   const [step, setStep] = useState(1);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  // For senior secondary: which streams are selected per base class (11th, 12th)
+  const [selectedStreams, setSelectedStreams] = useState<Record<string, string[]>>({});
   const [sectionCounts, setSectionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
   const toggleCategory = (category: typeof CLASS_CATEGORIES[0]) => {
-    const allSelected = category.classes.every((c) => selectedClasses.includes(c));
-    if (allSelected) {
-      setSelectedClasses((prev) => prev.filter((c) => !category.classes.includes(c)));
+    if (category.hasStreams) {
+      // For senior secondary, toggle the base classes
+      const allSelected = category.classes.every((c) => selectedClasses.includes(c));
+      if (allSelected) {
+        setSelectedClasses((prev) => prev.filter((c) => !category.classes.includes(c)));
+        // Clear streams too
+        const newStreams = { ...selectedStreams };
+        category.classes.forEach((c) => delete newStreams[c]);
+        setSelectedStreams(newStreams);
+      } else {
+        setSelectedClasses((prev) => [...new Set([...prev, ...category.classes])]);
+      }
     } else {
-      setSelectedClasses((prev) => [...new Set([...prev, ...category.classes])]);
+      const allSelected = category.classes.every((c) => selectedClasses.includes(c));
+      if (allSelected) {
+        setSelectedClasses((prev) => prev.filter((c) => !category.classes.includes(c)));
+      } else {
+        setSelectedClasses((prev) => [...new Set([...prev, ...category.classes])]);
+      }
     }
   };
 
   const toggleClass = (className: string) => {
-    setSelectedClasses((prev) =>
-      prev.includes(className) ? prev.filter((c) => c !== className) : [...prev, className]
-    );
+    setSelectedClasses((prev) => {
+      if (prev.includes(className)) {
+        // If removing a senior secondary class, also clear its streams
+        const newStreams = { ...selectedStreams };
+        delete newStreams[className];
+        setSelectedStreams(newStreams);
+        return prev.filter((c) => c !== className);
+      }
+      return [...prev, className];
+    });
+  };
+
+  const toggleStream = (baseClass: string, streamId: string) => {
+    setSelectedStreams((prev) => {
+      const current = prev[baseClass] || [];
+      if (current.includes(streamId)) {
+        return { ...prev, [baseClass]: current.filter((s) => s !== streamId) };
+      }
+      return { ...prev, [baseClass]: [...current, streamId] };
+    });
+  };
+
+  const isSeniorSecondaryClass = (className: string) => {
+    return CLASS_CATEGORIES.find((c) => c.hasStreams)?.classes.includes(className) || false;
+  };
+
+  // Build final class list: for senior secondary, expand into "11th Science", "11th Commerce", etc.
+  const getFinalClassNames = (): string[] => {
+    const result: string[] = [];
+    for (const category of CLASS_CATEGORIES) {
+      for (const cls of category.classes) {
+        if (!selectedClasses.includes(cls)) continue;
+        if (category.hasStreams) {
+          const streams = selectedStreams[cls] || [];
+          for (const stream of streams) {
+            result.push(`${cls} ${stream}`);
+          }
+        } else {
+          result.push(cls);
+        }
+      }
+    }
+    return result;
   };
 
   const getSectionCount = (className: string) => sectionCounts[className] || 1;
@@ -62,8 +127,33 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
     setSectionCounts((prev) => ({ ...prev, [className]: Math.max(1, Math.min(26, count)) }));
   };
 
-  const handleSubmit = async () => {
+  // Check if senior secondary classes have at least one stream selected
+  const hasSeniorSecondaryWithoutStreams = () => {
+    for (const cls of selectedClasses) {
+      if (isSeniorSecondaryClass(cls)) {
+        const streams = selectedStreams[cls] || [];
+        if (streams.length === 0) return cls;
+      }
+    }
+    return null;
+  };
+
+  const handleNext = () => {
     if (selectedClasses.length === 0) {
+      toast.error("Please select at least one class");
+      return;
+    }
+    const missingStream = hasSeniorSecondaryWithoutStreams();
+    if (missingStream) {
+      toast.error(`Please select at least one stream for ${missingStream}`);
+      return;
+    }
+    setStep(2);
+  };
+
+  const handleSubmit = async () => {
+    const finalClasses = getFinalClassNames();
+    if (finalClasses.length === 0) {
       toast.error("Please select at least one class");
       return;
     }
@@ -72,7 +162,7 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
     try {
       const classRows: { name: string; section: string; school_id: string; academic_year: string }[] = [];
 
-      for (const className of selectedClasses) {
+      for (const className of finalClasses) {
         const count = getSectionCount(className);
         for (let i = 0; i < count; i++) {
           classRows.push({
@@ -97,10 +187,7 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
     }
   };
 
-  // Get ordered selected classes maintaining category order
-  const orderedSelectedClasses = CLASS_CATEGORIES.flatMap((cat) =>
-    cat.classes.filter((c) => selectedClasses.includes(c))
-  );
+  const finalClassNames = getFinalClassNames();
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -112,7 +199,7 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
           </DialogTitle>
           <DialogDescription>
             {step === 1
-              ? "Choose which classes your school offers. You can always add more later."
+              ? "Choose which classes your school offers. For 11th & 12th, also select streams."
               : "Set how many sections each class has (e.g., A, B, C). Default is 1 section."}
           </DialogDescription>
         </DialogHeader>
@@ -157,6 +244,41 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
                       );
                     })}
                   </div>
+
+                  {/* Stream selection for Senior Secondary */}
+                  {category.hasStreams && category.classes.some((c) => selectedClasses.includes(c)) && (
+                    <div className="pl-7 pt-2 border-t space-y-3">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Select streams for senior secondary classes:
+                      </p>
+                      {category.classes
+                        .filter((cls) => selectedClasses.includes(cls))
+                        .map((cls) => (
+                          <div key={cls} className="space-y-2">
+                            <p className="text-sm font-semibold">{cls} — Streams:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {STREAMS.map((stream) => {
+                                const isStreamSelected = (selectedStreams[cls] || []).includes(stream.id);
+                                return (
+                                  <Button
+                                    key={stream.id}
+                                    type="button"
+                                    variant={isStreamSelected ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => toggleStream(cls, stream.id)}
+                                    className="rounded-full"
+                                    title={stream.description}
+                                  >
+                                    {isStreamSelected && <CheckCircle className="h-3.5 w-3.5 mr-1" />}
+                                    {stream.label}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -165,7 +287,7 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
 
         {step === 2 && (
           <div className="space-y-3 py-2">
-            {orderedSelectedClasses.map((cls) => {
+            {finalClassNames.map((cls) => {
               const count = getSectionCount(cls);
               const sections = Array.from({ length: count }, (_, i) => SECTION_LETTERS[i]);
               return (
@@ -175,7 +297,7 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
                     <div className="flex flex-wrap gap-1 mt-1">
                       {sections.map((s) => (
                         <Badge key={s} variant="secondary" className="text-xs">
-                          {cls}-{s}
+                          {cls} - {s}
                         </Badge>
                       ))}
                     </div>
@@ -197,21 +319,10 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {step === 1 ? (
-            <>
-              <Button
-                className="sm:ml-auto"
-                onClick={() => {
-                  if (selectedClasses.length === 0) {
-                    toast.error("Please select at least one class");
-                    return;
-                  }
-                  setStep(2);
-                }}
-              >
-                Next: Configure Sections
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            </>
+            <Button className="sm:ml-auto" onClick={handleNext}>
+              Next: Configure Sections
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
           ) : (
             <>
               <Button variant="outline" onClick={() => setStep(1)} className="sm:mr-auto">
@@ -227,7 +338,7 @@ const ClassSetupWizard = ({ open, schoolId, onComplete }: ClassSetupWizardProps)
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4 mr-1" />
-                    Create {orderedSelectedClasses.reduce((sum, c) => sum + getSectionCount(c), 0)} Class Sections
+                    Create {finalClassNames.reduce((sum, c) => sum + getSectionCount(c), 0)} Class Sections
                   </>
                 )}
               </Button>
