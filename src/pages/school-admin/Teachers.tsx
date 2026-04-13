@@ -38,7 +38,6 @@ interface Teacher {
   phone: string | null;
   employee_id: string | null;
   qualification: string | null;
-  subjects: string[] | null;
   date_of_joining: string | null;
   is_active: boolean;
   user_id: string | null;
@@ -49,14 +48,6 @@ interface TeacherClass {
   class_id: string;
   is_class_teacher: boolean;
   classes?: { name: string; section: string | null } | null;
-}
-
-interface ClassSubject {
-  id: string;
-  class_id: string;
-  subject_id: string;
-  classes?: { name: string; section: string | null } | null;
-  subjects?: { name: string } | null;
 }
 
 const Teachers = () => {
