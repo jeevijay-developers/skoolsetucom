@@ -1,57 +1,46 @@
+# Plan: Executive PRD for SkoolSetu (as-built)
 
+## Deliverable
+A single downloadable file: `/mnt/documents/PRD.md` (~5–8 pages).
+Scope reflects **only what currently exists** in the codebase + landing page — no aspirational modules.
 
-## Plan: Class Setup Wizard + Section Management
+## Approach
+1. Explore the codebase to inventory the actual, implemented feature set:
+   - `src/pages/super-admin/*` → Super Admin capabilities
+   - `src/pages/school-admin/*` → School Admin / Principal capabilities
+   - `src/pages/teacher/*` → Teacher capabilities
+   - `src/pages/student/*` → Student / Parent capabilities
+   - `src/pages/school-staff/*` + `staff_permissions` → Office Staff sub-admin roles (Finance/Accountant, HR, etc. modeled as permission bundles)
+   - `src/components/landing/*` → marketing claims to cross-check
+   - `supabase/functions/*` → auxiliary backend capabilities
+2. Cross-reference with landing page (`FeaturesSection`, `HeroSection`, memory notes) for tagline, positioning, target market.
+3. Write PRD directly to `/mnt/documents/PRD.md`.
 
-### Overview
-Add a post-registration class setup dialog, improve section management in the Classes page, and make student/teacher forms use dynamic class-then-section dropdowns.
+## PRD Structure (~5–8 pages)
+1. **Overview** — product name, tagline, one-paragraph description, current status.
+2. **Vision & Positioning** — problem, solution, differentiators (₹1/day pricing, India-first).
+3. **Target Users & Market** — Indian private schools (CBSE/State Board), 200–5000 students.
+4. **User Roles** — one subsection each with purpose, primary jobs-to-be-done, and dashboard entry point:
+   - Super Admin (SkoolSetu)
+   - School Admin / Principal / Director
+   - Teacher
+   - Student / Parent (shared portal)
+   - Finance / Accountant *(realized via Office Staff sub-admin with `can_collect_fee` + `can_manage_payroll`)*
+   - HR *(Office Staff sub-admin with payroll + employee-adjacent perms)*
+   - Office Staff (generic sub-admin) — permission matrix
+   - Librarian / Transport — **noted as not-yet-implemented** (per as-built scope)
+5. **Feature Modules** (grouped, terse) — Student Mgmt, Teacher/Employee Mgmt, Class Setup Wizard (with streams for 11th/12th), Attendance, Fees & Collection, Discount Authorities, Invoice Customization, Exams & Results, Report Cards, Assignments, Payroll, Leave Management, Notices, Greetings, Analytics, Class Promotion, Subscriptions & Trials, Coupons, Trial Leads, Staff Access Control, Parent Portal.
+6. **Role × Module Permission Matrix** — compact table.
+7. **Non-Functional Requirements** — auth (role-based), RLS, subscription gating, responsive UI, PDF/CSV export.
+8. **Out of Scope (current release)** — Library, Transport, Hostel, Timetable, LMS/content, biometric attendance.
+9. **Success Metrics** — trial→paid conversion, active schools, DAU per school, fee-collection throughput.
 
-### Current State
-- `classes` table has `name` and `section` columns — each row is one class-section combo (e.g., "6th" + "A")
-- Students pick a single `class_id` dropdown showing "6th - A"
-- Teachers are assigned to classes via `teacher_classes` table
-- No structured class setup during registration
+## Delivery
+- Write file with a single shell heredoc.
+- Emit `<presentation-artifact path="PRD.md" mime_type="text/markdown"></presentation-artifact>` so the user can download.
+- Short closing sentence — no recap.
 
-### Changes
-
-**1. New Component: `src/components/class-setup/ClassSetupWizard.tsx`**
-- Full-screen dialog shown after registration completes (before navigating to dashboard)
-- Step 1: Checkboxes for class categories with predefined classes:
-  - Pre-Primary: Nursery, LKG, UKG
-  - Primary: 1st to 5th
-  - Secondary: 6th to 10th
-  - Senior Secondary: 11th, 12th
-- Step 2: For each selected class, a number input (default 1) to set how many sections (A, B, C, D...)
-- On submit: bulk-insert into `classes` table (e.g., "6th" with section "A", "6th" with section "B", etc.)
-- No fee structures required at this stage — admin can add them later in Classes page
-
-**2. Edit `src/pages/Register.tsx`**
-- After successful registration and role assignment, instead of navigating directly to `/school-admin`, show the ClassSetupWizard dialog
-- Pass `schoolId` to the wizard; on wizard completion, navigate to dashboard
-- Add a "Skip" option to go straight to dashboard
-
-**3. Edit `src/pages/school-admin/Classes.tsx`**
-- Add "Add Section" button on each class row — creates a new section (next letter) for that class name
-- Group classes by name in the display so "6th-A, 6th-B, 6th-C" appear together
-- Default section to "A" when creating a new class if no section is specified
-
-**4. Edit `src/pages/school-admin/Students.tsx` — Dynamic Class + Section Dropdowns**
-- Replace single class dropdown with two dropdowns:
-  - Dropdown 1: Unique class names (e.g., "6th", "7th")
-  - Dropdown 2: Sections for selected class (e.g., "A", "B", "C") — populated dynamically
-- If a class has only 1 section, auto-select it
-- Set `class_id` based on the name+section combination
-
-**5. Edit `src/pages/school-admin/Teachers.tsx` — Same Dynamic Dropdowns**
-- Where teachers are assigned to classes, use the same class-then-section pattern
-- Teacher assignment should be to a specific class+section (which maps to a `class_id`)
-
-### No Database Migration Required
-The existing `classes` table already supports `name` + `section` per row. The wizard just bulk-inserts rows.
-
-### Files Changed
-- New: `src/components/class-setup/ClassSetupWizard.tsx`
-- Edit: `src/pages/Register.tsx`
-- Edit: `src/pages/school-admin/Classes.tsx`
-- Edit: `src/pages/school-admin/Students.tsx`
-- Edit: `src/pages/school-admin/Teachers.tsx`
-
+## Non-goals for this task
+- No code changes.
+- No new modules or DB migrations.
+- No aspirational features beyond what code + landing page confirm.
